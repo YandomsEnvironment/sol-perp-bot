@@ -12,8 +12,15 @@ from tests.test_features import _candles
 def test_model_inputs_ignore_unavailable_venue_extras():
     candles = _candles()
     basic = candles.drop(columns="taker_buy_volume")
-    pd.testing.assert_frame_equal(F.compute_model_features(candles),
-                                  F.compute_model_features(basic))
+    with_flow = F.compute_model_features(candles)
+    without_flow = F.compute_model_features(basic)
+    # v4 contract: taker_buy_volume flows through when the venue provides it;
+    # every v2/v3 feature must be identical either way, and nothing beyond the
+    # documented flow columns may appear.
+    extra = set(with_flow.columns) - set(without_flow.columns)
+    assert extra == set(F.V4_COLUMNS) or extra == set()
+    pd.testing.assert_frame_equal(with_flow.drop(columns=sorted(extra), errors="ignore"),
+                                  without_flow.drop(columns=sorted(extra), errors="ignore"))
 
 
 def test_missing_features_are_not_fabricated():

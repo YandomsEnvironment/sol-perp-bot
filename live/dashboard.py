@@ -111,10 +111,40 @@ def get_chart_candles(tf: str) -> pd.DataFrame:
 
 
 def get_bundle(key: str) -> dict:
-    def load():
-        import joblib
-        return joblib.load(config.MODELS_DIR / f"model_{key}.pkl")
-    return cached(f"model-{key}", 3600, load)
+    """Explicit local research selection, never promotion or latest-file guessing."""
+    try:
+        selection = json.loads((ROOT / "research_models.json").read_text(encoding="utf-8-sig"))
+        relative = selection[key]
+        root = config.MODELS_DIR.resolve()
+        path = (root / relative).resolve()
+        if root not in path.parents or path.suffix != ".pkl":
+            raise ValueError("Research model must be a .pkl file inside models")
+        stamp = path.stat().st_mtime_ns
+        def load():
+            import joblib
+            import validation as V
+            bundle = dict(joblib.load(path))
+            if (bundle.get("input_contract") not in F.SUPPORTED_CONTRACTS
+                    or bundle.get("horizon_name") != key
+                    or bundle.get("horizon_min") != config.HORIZONS_MIN[key]
+                    or bundle.get("target") != "forward"
+                    or not bundle.get("feature_names")):
+                raise ValueError("Research model contract, target or horizon is incompatible")
+            model = bundle["model"]
+            if isinstance(model, tuple):
+                model = model[0]
+            if isinstance(model, V.CalibratedModel):
+                model = model.model
+            if list(model.classes_) != [0, 1, 2]:
+                raise ValueError("Research model class order must be FLAT, LONG, SHORT")
+            bundle.update(model=model, research_only=True, model_id=path.relative_to(root).as_posix(),
+                          probability_kind="raw", conf_threshold=1.01, gate_pass=False)
+            bundle["aggregate"] = {**bundle.get("aggregate", {}), "gate_pass": False}
+            return bundle
+        return cached(f"research-model-{key}-{path}-{stamp}", 3600, load)
+    except Exception as exc:
+        return {"model": None, "feature_names": [], "research_only": True,
+                "load_error": f"Research model unavailable: {exc}"}
 
 
 def live_ctx(ctx, coin: str) -> dict | None:
@@ -244,7 +274,7 @@ def market_snapshot(settings: dict) -> dict:
         model = model[0]
     delay_ms = 2_000
     cutoff = (int(time.time() * 1000) - delay_ms) // TIMEFRAMES["1m"] * TIMEFRAMES["1m"]
-    quality_errors = []
+    quality_errors = [bundle["load_error"]] if bundle.get("load_error") else []
     sol = sol.loc[sol["timestamp"] + TIMEFRAMES["1m"] <= cutoff].copy()
     if btc is not None and not btc.empty and "timestamp" in btc:
         btc = btc.loc[btc["timestamp"] + TIMEFRAMES["1m"] <= cutoff].copy()
@@ -261,8 +291,8 @@ def market_snapshot(settings: dict) -> dict:
             quality_errors.append(f"{name} latest closed candle is stale")
     if len(sol) < F.WARMUP_BARS + 60:
         quality_errors.append(f"Need at least {F.WARMUP_BARS + 60} closed 1m candles; got {len(sol)}")
-    if bundle.get("input_contract") != "closed-ohlcv-v2":
-        quality_errors.append("Model bundle lacks required closed-ohlcv-v2 input contract")
+    if bundle.get("input_contract") not in F.SUPPORTED_CONTRACTS:
+        quality_errors.append("Model bundle input contract must be closed-ohlcv-v2 or closed-ohlcv-v3")
     if sol.empty:
         quality_errors.append("SOL closed candles are unavailable")
         feats = pd.DataFrame([{name: np.nan for name in
@@ -369,6 +399,9 @@ def market_snapshot(settings: dict) -> dict:
                  "sell_size": flow.get("sell_sz")},
         "decision": "STAND ASIDE" if not actionable else model_lean,
         "model_available": not bool(quality_errors), "data_quality_errors": quality_errors,
+        "model_id": bundle.get("model_id"), "model_trained_at": bundle.get("trained_at"),
+        "model_target": bundle.get("target"), "probability_kind": bundle.get("probability_kind", "raw"),
+        "research_only": bundle.get("research_only", False),
         "model_lean": model_lean, "evidence_lean": evidence_lean,
         "evidence_tally": tally, "model_probability": float(proba[pred]) if pred is not None else 0.0,
         "probabilities": {"flat": float(proba[0]), "long": float(proba[1]), "short": float(proba[2])},

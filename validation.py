@@ -57,12 +57,17 @@ def probability_metrics(y, proba) -> dict:
 
 def path_returns(candles, pred_classes, horizon, atr_pct=None,
                  cost=config.ROUND_TRIP_COST, tp=config.TP_ATR,
-                 sl=config.SL_ATR):
+                 sl=config.SL_ATR, barrier_scale: float = 1.0):
     """One position at a time, next-open entry, conservative OHLC exits.
 
     Fractions of unlevered notional, not account equity. Maker cost scenarios
     are sensitivity analysis, not proof of fills. Flat/overlap/unmatured rows
     return NaN. No intrabar price ordering is invented: stop wins ties.
+
+    barrier_scale multiplies the ATR distances: config's documented design is
+    "TP/SL = mult x ATR(horizon)", so callers simulating an H-minute horizon
+    should pass sqrt(H) (Brownian scaling) -- the raw 1m ATR alone makes the
+    take-profit smaller than the fee at longer horizons.
     """
     if horizon < 1 or cost < 0:
         raise ValueError("Positive horizon and nonnegative cost required")
@@ -92,8 +97,8 @@ def path_returns(candles, pred_classes, horizon, atr_pct=None,
         if a is not None:
             if not np.isfinite(a[i]) or a[i] <= 0:
                 continue
-            target = entry * (1 + direction * tp * a[i])
-            stop = entry * (1 - direction * sl * a[i])
+            target = entry * (1 + direction * tp * a[i] * barrier_scale)
+            stop = entry * (1 - direction * sl * a[i] * barrier_scale)
             for j, (op, high, low, close) in enumerate(window, i + 1):
                 if (direction == 1 and op <= stop) or (direction == -1 and op >= stop):
                     exit_price, exit_row = op, j
@@ -351,6 +356,69 @@ def fit_isotonic_multiclass(model, X_val, y_val) -> CalibratedModel:
 # ----------------------------------------------------------------------------
 # Dumb-rule baseline (M7): the model must beat this after costs
 # ----------------------------------------------------------------------------
+
+class SeedBag:
+    """Averaged ensemble of identically-configured classifiers over seeds.
+
+    Variance reduction for probability outputs; classes stay {0,1,2}.
+    Defined here (validation is imported by the dashboard) so bundles unpickle.
+    """
+
+    classes_ = np.array([CLASS_FLAT, CLASS_LONG, CLASS_SHORT])
+
+    def __init__(self, models: list):
+        if not models:
+            raise ValueError("SeedBag needs at least one model")
+        self.models = list(models)
+
+    def predict_proba(self, X) -> np.ndarray:
+        p = np.mean([np.asarray(m.predict_proba(X), dtype=np.float64)
+                     for m in self.models], axis=0)
+        return p / p.sum(axis=1, keepdims=True)
+
+
+def fit_seed_bag(make_model_fn, X_tr, y_tr, seeds=(42, 137, 2718), **fit_kwargs):
+    """Fit one classifier per seed and average. make_model_fn(seed) -> model."""
+    models = []
+    for seed in seeds:
+        m = make_model_fn(seed)
+        m.fit(X_tr, y_tr, **fit_kwargs)
+        models.append(m)
+    return SeedBag(models)
+
+
+class CalibratedBinary:
+    """Binary wrapper: classifier + isotonic calibration of P(up)."""
+
+    def __init__(self, model, calibrator):
+        self.model = model
+        self.calibrator = calibrator
+        self.classes_ = np.array([0, 1])
+
+    def predict_proba(self, X) -> np.ndarray:
+        p = np.asarray(self.model.predict_proba(X), dtype=np.float64)[:, 1]
+        c = np.clip(self.calibrator.predict(p), 1e-6, 1 - 1e-6)
+        return np.column_stack([1 - c, c])
+
+
+def decisive_classes(proba, tau: float = 0.50, delta: float = 0.05) -> np.ndarray:
+    """Directional call only when the LONG/SHORT margin is decisive.
+
+    tau:   minimum probability of the favored side (self-confidence)
+    delta: minimum |p_long - p_short| margin (edge over the other side)
+    Anything else is FLAT -- indecision is a first-class output.
+    """
+    p = np.asarray(proba, dtype=float)
+    if p.ndim != 2 or p.shape[1] != 3:
+        raise ValueError("Expected an N by 3 probability array")
+    long, short = p[:, CLASS_LONG], p[:, CLASS_SHORT]
+    fav = np.maximum(long, short)
+    take = (fav >= tau) & (np.abs(long - short) >= delta)
+    out = np.full(len(p), CLASS_FLAT, dtype=np.int64)
+    out[take & (long >= short)] = CLASS_LONG
+    out[take & (short > long)] = CLASS_SHORT
+    return out
+
 
 def momentum_baseline_classes(
     feats: pd.DataFrame,

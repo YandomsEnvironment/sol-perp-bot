@@ -158,6 +158,50 @@ def test_legacy_contract_fails_closed(monkeypatch, tmp_path):
     assert not (tmp_path / "signals.jsonl").exists()
 
 
+def test_missing_research_model_returns_unavailable(monkeypatch, tmp_path):
+    loader = dashboard.get_bundle
+    _mock_inputs(monkeypatch, tmp_path)
+    monkeypatch.setattr(dashboard, "ROOT", tmp_path)
+    monkeypatch.setattr(dashboard, "get_bundle", loader)
+    data = dashboard.market_snapshot({"hz": "15m", "tf": "1m", "sol_wallet": ""})
+    assert data["model_available"] is False
+    assert any("Research model unavailable" in error for error in data["data_quality_errors"])
+    assert data["decision"] == "STAND ASIDE"
+    assert not (tmp_path / "signals.jsonl").exists()
+
+
+@pytest.mark.parametrize("mismatch", [None, "horizon", "contract", "path"])
+def test_research_loader_checks_contract_and_forces_raw_read_only(monkeypatch, tmp_path, mismatch):
+    import joblib
+    import numpy as np
+    from sklearn.dummy import DummyClassifier
+    import validation as V
+    root = tmp_path / "models"
+    root.mkdir()
+    model = DummyClassifier(strategy="prior").fit([[0], [1], [2]], [0, 1, 2])
+    bundle = {"model": V.CalibratedModel(model, {}), "feature_names": ["ret_15m"],
+              "horizon_name": "mid", "horizon_min": 15, "target": "forward",
+              "input_contract": "closed-ohlcv-v2", "aggregate": {"gate_pass": True}}
+    if mismatch == "horizon":
+        bundle["horizon_min"] = 5
+    if mismatch == "contract":
+        bundle["input_contract"] = "legacy"
+    joblib.dump(bundle, root / "test.pkl")
+    (tmp_path / "research_models.json").write_text(json.dumps(
+        {"mid": "../outside.pkl" if mismatch == "path" else "test.pkl"}))
+    monkeypatch.setattr(dashboard, "ROOT", tmp_path)
+    monkeypatch.setattr(dashboard.config, "MODELS_DIR", root)
+    got = dashboard.get_bundle("mid")
+    if mismatch:
+        assert "load_error" in got
+    else:
+        assert got["research_only"] is True
+        assert got["aggregate"]["gate_pass"] is False
+        assert got["conf_threshold"] > 1
+        assert not isinstance(got["model"], V.CalibratedModel)
+        np.testing.assert_allclose(got["model"].predict_proba([[0]]), [[1/3]*3])
+
+
 def test_json_serialization_handles_nonfinite_values():
     assert dashboard.clean(pd.Timestamp("2026-01-01", tz="UTC")) == "2026-01-01T00:00:00+00:00"
     assert dashboard.clean(float("inf")) is None
@@ -170,11 +214,11 @@ def test_evidence_tolerates_absent_optional_features():
     assert tally["LONG"] == 0 and tally["SHORT"] == 0
 
 
-def test_static_frontend_has_two_tabs_and_canvas_chart():
+def test_static_frontend_has_single_page_and_canvas_chart():
     html = (Path(dashboard.WEB_ROOT) / "index.html").read_text(encoding="utf-8-sig")
     js = (Path(dashboard.WEB_ROOT) / "app.js").read_text(encoding="utf-8-sig")
-    assert 'id="overviewTab"' in html
-    assert 'id="detailsTab"' in html
+    assert 'id="overviewPanel"' in html
+    assert 'id="detailsTab"' not in html
     assert 'id="chart"' in html
     assert 'getContext("2d")' in js
 

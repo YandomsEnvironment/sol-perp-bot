@@ -11,6 +11,28 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
+# Feature contract versions. v3 adds the block marked "closed-ohlcv-v3" in
+# compute_features; v2 bundles keep working because prepare_model_input
+# reindexes to the bundle's stored feature_names.
+CONTRACT_V2 = "closed-ohlcv-v2"
+CONTRACT_V3 = "closed-ohlcv-v3"
+CONTRACT_V4 = "closed-ohlcv-v4"
+CONTRACT_V5 = "closed-ohlcv-v5"
+SUPPORTED_CONTRACTS = (CONTRACT_V2, CONTRACT_V3, CONTRACT_V4, CONTRACT_V5)
+V3_COLUMNS = [
+    "ret_2h", "ret_8h", "atr_pct_z", "rv_240m", "ema200_dist", "range_pos_240",
+    "dist_high_1d", "dist_low_1d", "body_mean_15", "wick_skew_15",
+    "vol_ma_ratio_480", "btc_rsi14", "btc_rv_15m", "btc_range_pos_60",
+    "btc_vol_z_60",
+]
+# v4 adds taker-flow imbalance. Parity: the live WS feed aggregates trades
+# into per-minute taker_buy_volume -- the same column Binance klines carry.
+V4_COLUMNS = ["tbr_5m", "tbr_15m", "tbr_60m", "tbr_x", "taker_size_15m"]
+# v5 adds market positioning: funding level/change and open-interest changes.
+# Parity: Hyperliquid ctx serves funding and openInterest live; historical
+# backtests use Binance Vision metrics dumps (5-minute open interest).
+V5_COLUMNS = ["funding", "funding_chg", "oi_chg_5m", "oi_chg_60m"]
+
 # Bars of history needed before features are valid (ret_1d needs 1440 1m bars).
 WARMUP_BARS = 1440
 
@@ -131,6 +153,31 @@ def compute_features(
     feats["hour_sin"] = np.sin(2 * np.pi * hours / 24.0)
     feats["hour_cos"] = np.cos(2 * np.pi * hours / 24.0)
 
+    # --- closed-ohlcv-v3 additions (still OHLCV-only, causal lookbacks) ---
+    # Longer-horizon returns beyond ret_1d's fixed window set.
+    feats["ret_2h"] = close.pct_change(120)
+    feats["ret_8h"] = close.pct_change(480)
+    # Volatility regime: is current ATR high/low for the last ~3 days?
+    am, asd = feats["atr_pct"].rolling(4320, min_periods=1440).mean(), \
+        feats["atr_pct"].rolling(4320, min_periods=1440).std()
+    feats["atr_pct_z"] = (feats["atr_pct"] - am) / asd.replace(0, np.nan)
+    feats["rv_240m"] = close.pct_change().rolling(240).std()
+    # Trend structure on slower scales.
+    ema200 = close.ewm(span=200, adjust=False).mean()
+    feats["ema200_dist"] = close / ema200 - 1.0
+    roll240_lo, roll240_hi = close.rolling(240).min(), close.rolling(240).max()
+    feats["range_pos_240"] = (close - roll240_lo) / (roll240_hi - roll240_lo)
+    feats["dist_high_1d"] = close / close.rolling(1440).max() - 1.0
+    feats["dist_low_1d"] = close / close.rolling(1440).min() - 1.0
+    # Candle anatomy: signed body share and wick asymmetry, 15-bar means.
+    rng = (df["high"] - df["low"]).replace(0, np.nan)
+    body = (df["close"] - df["open"]) / rng
+    upper = (df["high"] - df[["open", "close"]].max(axis=1)) / rng
+    lower = (df[["open", "close"]].min(axis=1) - df["low"]) / rng
+    feats["body_mean_15"] = body.rolling(15).mean()
+    feats["wick_skew_15"] = (upper - lower).rolling(15).mean()
+    feats["vol_ma_ratio_480"] = df["volume"] / df["volume"].rolling(480).mean()
+
     # Taker flow (microstructure): aggressive buy share of volume.
     # Historical: Binance Vision klines carry taker_buy_volume (SOL file).
     # Live parity: aggregate Hyperliquid WS trades (side field) per minute
@@ -168,6 +215,15 @@ def compute_features(
         spread = np.log(close) - np.log(btc_close)
         feats["sol_btc_rs_15m"] = spread.diff(15)
         feats["sol_btc_rs_1h"] = spread.diff(60)
+        # closed-ohlcv-v3: BTC-side regime context, same causal windows.
+        feats["btc_rsi14"] = rsi(btc_close, 14)
+        feats["btc_rv_15m"] = btc_close.pct_change().rolling(15).std()
+        b_lo = btc_close.rolling(60).min()
+        b_hi = btc_close.rolling(60).max()
+        feats["btc_range_pos_60"] = (btc_close - b_lo) / (b_hi - b_lo)
+        b_vol = btc["volume"].reindex(df.index)
+        bv_m, bv_s = b_vol.rolling(60).mean(), b_vol.rolling(60).std()
+        feats["btc_vol_z_60"] = (b_vol - bv_m) / bv_s
 
     # Perp-specific: funding level + change since last stamp (crowd positioning)
     if funding is not None:
@@ -205,17 +261,23 @@ def compute_features(
 
 
 def compute_model_features(candles: pd.DataFrame,
-                           btc_candles: Optional[pd.DataFrame] = None) -> pd.DataFrame:
+                           btc_candles: Optional[pd.DataFrame] = None,
+                           funding: Optional[pd.DataFrame] = None,
+                           oi: Optional[pd.DataFrame] = None) -> pd.DataFrame:
     """Versioned, venue-portable inputs available from both OHLCV feeds.
 
-    This deliberately excludes Binance-only flow/counts and funding from a
-    different venue. Source-venue differences still require separate validation.
+    This deliberately excludes Binance-only flow/counts from a different
+    venue. v4/v5 extras (taker flow, funding, open interest) flow through
+    only when the caller supplies the parity-backed frames. Source-venue
+    differences still require separate validation.
     """
-    columns = ["timestamp", "open", "high", "low", "close", "volume"]
+    columns = ["timestamp", "open", "high", "low", "close", "volume",
+               "taker_buy_volume"]
     use = [c for c in columns if c in candles]
     btc = None if btc_candles is None else btc_candles[
         [c for c in columns if c in btc_candles]]
-    return compute_features(candles[use], btc_candles=btc)
+    return compute_features(candles[use], btc_candles=btc,
+                            funding=funding, oi=oi)
 
 
 def prepare_model_input(feats: pd.DataFrame, feature_names: list[str]) -> pd.DataFrame:

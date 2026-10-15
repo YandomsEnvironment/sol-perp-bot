@@ -9,7 +9,7 @@ def test_path_uses_full_candles_and_forward_fixed_horizon(monkeypatch):
     candles = pd.DataFrame({"open": 100., "high": 101., "low": 99., "close": 100.}, index=idx)
     seen = {}
 
-    def fake_path(frame, pred, horizon, atr_pct=None, cost=None):
+    def fake_path(frame, pred, horizon, atr_pct=None, cost=None, barrier_scale=1.0):
         seen.update(length=len(frame), atr=atr_pct, pred=np.asarray(pred).copy())
         return np.arange(len(frame), dtype=float)
 

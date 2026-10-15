@@ -1,0 +1,102 @@
+/* Dark appearance: true-black surfaces, legible secondary text, semantic color. */
+html[data-theme="dark"] {
+  --bg: #000000;
+  --surface: #080808;
+  --surface-raised: #141414;
+  --surface-hover: #1d1d1d;
+  --text: #f0f1f3;
+  --muted: #a7abb3;
+  --line: #262626;
+  --green: #7dceb0;
+  --red: #ed969e;
+  --gain-soft: #081b13;
+  --loss-soft: #200e12;
+  --chart-grid: #191919;
+  --chart-ink: #050505;
+  --focus: #9ebfff;
+  scrollbar-color: #444444 var(--surface);
+}
+
+html[data-theme="dark"] body { background: var(--bg); }
+html[data-theme="dark"] ::selection { background: #405675; color: #fff; }
+html[data-theme="dark"] .chrome {
+  background: #000000eb;
+  border-bottom-color: #26262699;
+}
+html[data-theme="dark"] :is(.market-strip, .chart-panel, .decision-card, .detail-card) {
+  border-color: #262626b3;
+  box-shadow: none;
+}
+html[data-theme="dark"] :is(.venue, .settings-row label, .chart-settings label) {
+  color: var(--muted);
+}
+html[data-theme="dark"] :is(.chart-footer, .page-footer, td) { border-color: var(--line); }
+html[data-theme="dark"] td { color: #d2d5db; }
+html[data-theme="dark"] :is(td.up, .up) { color: var(--green); }
+html[data-theme="dark"] :is(td.down, .down) { color: var(--red); }
+html[data-theme="dark"] .indicator-row td { color: #d2d5db; }
+html[data-theme="dark"] .indicator-row td:first-child { color: var(--text); font-weight: 550; }
+html[data-theme="dark"] th { background: #0d0d0d; color: #b7bbc3; }
+html[data-theme="dark"] tbody tr:hover td { background-color: #ffffff04; }
+html[data-theme="dark"] .empty-cell { color: var(--muted); }
+html[data-theme="dark"] :is(.tabs, .chart-intervals) {
+  background: #050505;
+  box-shadow: inset 0 0 0 1px #ffffff06;
+}
+html[data-theme="dark"] :is(.tab.active, .chart-intervals button[aria-pressed="true"]) {
+  background: var(--surface-raised);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px #ffffff0b, 0 2px 5px #00000020;
+}
+html[data-theme="dark"] :is(.tab:hover, .chart-intervals button:hover) { color: var(--text); }
+html[data-theme="dark"] :is(.quiet-button, .horizon-pill, .read-only) {
+  background: var(--surface-raised);
+  color: #c6c9d0;
+}
+html[data-theme="dark"] .quiet-button:hover { background: var(--surface-hover); color: var(--text); }
+html[data-theme="dark"] #chartSettingsToggle[aria-expanded="true"] {
+  background: #0d2118;
+  color: var(--green);
+}
+html[data-theme="dark"] .chart-settings { background: #040404; border-color: var(--line); }
+html[data-theme="dark"] :is(.theme-control select, .chart-settings select, .settings-row input, .settings-row select) {
+  background: #0e0e0e;
+  border-color: #353535;
+  color: var(--text);
+  box-shadow: inset 0 1px 2px #00000014;
+}
+html[data-theme="dark"] input::placeholder { color: #999ea8; opacity: 1; }
+html[data-theme="dark"] :is(button, a, input, select):focus-visible {
+  outline-color: var(--focus);
+}
+html[data-theme="dark"] .primary-button { background: #dde2e8; color: #080808; }
+html[data-theme="dark"] .primary-button:hover { background: #f0f2f5; }
+html[data-theme="dark"] .text-button:hover { color: #a0e1c8; }
+html[data-theme="dark"] :is(.validation-badge, .unverified-tag) {
+  background: #1d1609;
+  color: #e0bf87;
+}
+html[data-theme="dark"] .validation-badge:before,
+html[data-theme="dark"] .status-dot.offline { background: #d3aa69; }
+html[data-theme="dark"] .settings-status.error { color: var(--red); }
+html[data-theme="dark"] .prob-track { background: #222222; height: 7px; }
+html[data-theme="dark"] .prob-value { color: #d2d5db; font-weight: 550; }
+html[data-theme="dark"] .vote-pill { background: #191919; color: #b7bbc3; }
+html[data-theme="dark"] .vote-pill.long {
+  background: var(--gain-soft); color: var(--green); border-color: #47705f;
+}
+html[data-theme="dark"] .vote-pill.short {
+  background: var(--loss-soft); color: var(--red); border-color: #775057;
+}
+html[data-theme="dark"] .summary-chip { background: #0d0d0d; border-color: var(--line); }
+html[data-theme="dark"] .summary-chip.up {
+  background: var(--gain-soft); border-color: #3c5c4f;
+  box-shadow: inset 0 2px 0 #7dceb04d;
+}
+html[data-theme="dark"] .summary-chip.down {
+  background: var(--loss-soft); border-color: #63434a;
+  box-shadow: inset 0 2px 0 #ed969e4d;
+}
+html[data-theme="dark"] .summary-chip span { color: #bac0c7; }
+html[data-theme="dark"] .title-period { color: var(--green); }
+html[data-theme="dark"] .footer-separator { color: #747a85; }

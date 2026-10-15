@@ -22,8 +22,10 @@ def load_data() -> dict:
     sol = pd.read_parquet(store / "candles_SOL_1m_binance.parquet")
     btc = pd.read_parquet(store / "candles_BTC_1m_binance.parquet")
     fpath = store / "funding_SOL.parquet"
+    mpath = store / "metrics_SOL.parquet"
     return {"sol": sol, "btc": btc,
-            "funding": pd.read_parquet(fpath) if fpath.exists() else None}
+            "funding": pd.read_parquet(fpath) if fpath.exists() else None,
+            "metrics": pd.read_parquet(mpath) if mpath.exists() else None}
 
 
 def _indexed(candles):
@@ -101,7 +103,8 @@ def train_one(model, lgb, X_tr, y_tr, horizon_min=60, target="barrier"):
     return chosen, parts
 
 
-def _path(candles, index, pred, atr, horizon, cost=None, target="barrier"):
+def _path(candles, index, pred, atr, horizon, cost=None, target="barrier",
+          barrier_scale=1.0, tp=None, sl=None):
     """Simulate against the complete raw minute grid, retaining future bars."""
     pred = np.asarray(pred)
     signals = np.zeros(len(candles), dtype=int)
@@ -110,9 +113,12 @@ def _path(candles, index, pred, atr, horizon, cost=None, target="barrier"):
     valid = positions >= 0
     signals[positions[valid]] = pred[valid]
     atr_full[positions[valid]] = np.asarray(atr)[valid]
+    kw = {} if tp is None and sl is None else {"tp": config.TP_ATR if tp is None else tp,
+                                               "sl": config.SL_ATR if sl is None else sl}
     full = np.asarray(V.path_returns(
         candles, signals, horizon, atr_pct=atr_full if target == "barrier" else None,
-        cost=config.ROUND_TRIP_COST if cost is None else cost), dtype=float)
+        cost=config.ROUND_TRIP_COST if cost is None else cost,
+        barrier_scale=barrier_scale, **kw), dtype=float)
     result = np.full(len(index), np.nan, dtype=float)
     result[valid] = full[positions[valid]]
     return result

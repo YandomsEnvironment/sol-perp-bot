@@ -7,66 +7,111 @@
   <title>Solana — Market Brief</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%231d1d1f'/%3E%3Cpath d='M18 21h28M18 32h28M18 43h28' stroke='%23b5e6d4' stroke-width='7'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/dark.css">
+  <link rel="stylesheet" href="/model-panel.css">
+  <link rel="stylesheet" href="/dashboard-layout.css">
   <script src="/app.js" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to market brief</a>
   <header class="chrome"><div class="chrome-inner">
     <a class="brand" href="#overview" aria-label="Market Brief overview"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>Market Brief<span class="brand-divider"></span><span class="brand-asset">Solana</span></a>
-    <div class="connection"><label class="theme-control"><span class="sr-only">Appearance</span><select id="themeSelect" aria-label="Appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label><i class="status-dot offline" id="feedDot"></i><span id="feedStatus">Connecting</span><span class="read-only">Read-only</span></div>
+    <div class="connection"><i class="status-dot offline" id="feedDot"></i><span id="feedStatus">Connecting</span><span class="read-only">Read-only</span><button id="appearanceToggle" class="appearance-toggle" type="button" aria-haspopup="dialog" aria-controls="appearanceDialog" aria-expanded="false"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m9 3-.6 2.2-2 .9-2-.7-2 3.4 1.6 1.6v2.3L2.4 15l2 3.4 2.1-.6 2 .9.5 2.3h4l.6-2.3 2-.9 2 .6 2-3.4-1.6-1.6v-2.3l1.6-1.6-2-3.4-2.1.7-2-.9L13 3Z"/><circle cx="11" cy="12" r="3"/></svg>Settings</button></div>
   </div></header>
+  <dialog id="appearanceDialog" class="appearance-dialog" aria-labelledby="appearanceHeading" aria-describedby="appearanceDescription">
+    <div class="appearance-header"><div><p class="eyebrow">Make it yours</p><h2 id="appearanceHeading">Appearance</h2></div><button id="closeAppearance" class="appearance-close" type="button" aria-label="Close appearance settings" autofocus>&times;</button></div>
+    <div class="appearance-body">
+    <p id="appearanceDescription" class="appearance-description">Your workspace, your colors. Changes preview instantly and save on this browser without changing the model or wallet.</p>
+    <div class="appearance-fields">
+      <label>Theme<select id="themeSelect"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+      <label>Color palette<select id="paletteSelect"><optgroup label="Red / green"><option value="classic">Classic · Balanced</option><option value="emerald">Emerald · Vivid</option><option value="mint">Mint · Soft pastel</option><option value="terminal">Terminal · Electric</option><option value="forest">Forest · Muted</option><option value="crimson">Crimson · Deep red</option></optgroup><optgroup label="Alternative palettes"><option value="ocean">Ocean · Blue / orange</option><option value="violet">Neon · Cyan / pink</option></optgroup><option value="custom">Custom colors</option></select></label>
+    </div>
+    <fieldset class="appearance-colors"><legend>Market colors</legend><p>Used across candles, forecasts, indicators, and profit / loss. Direction labels stay visible in every palette.</p>
+      <div class="color-grid">
+        <label class="color-control"><input id="upColor" type="color" value="#167d62"><span>Bullish / gains<output id="upColorValue" for="upColor">#167d62</output></span></label>
+        <label class="color-control"><input id="downColor" type="color" value="#c8494e"><span>Bearish / losses<output id="downColorValue" for="downColor">#c8494e</output></span></label>
+        <label class="color-control"><input id="accentColor" type="color" value="#0071e3"><span>Interface accent<output id="accentColorValue" for="accentColor">#0071e3</output></span></label>
+        <label class="color-control"><input id="gridColor" type="color" value="#f0f0f3"><span>Chart grid<output id="gridColorValue" for="gridColor">#f0f0f3</output></span></label>
+      </div>
+      <div class="palette-preview" aria-label="Color preview"><span class="preview-up">↗ Bullish / Long</span><span class="preview-down">↘ Bearish / Short</span><span class="preview-accent">Accent</span></div>
+      <p>For best readability, choose colors that stand out against your theme.</p>
+      <button id="swapColors" class="quiet-button" type="button">Swap bullish / bearish</button>
+    </fieldset>
+    <section id="chartSettings" class="appearance-chart" aria-labelledby="chartAppearanceHeading"><h3 id="chartAppearanceHeading">Chart</h3>
+      <div class="appearance-fields"><label>Chart style<select id="chartStyle"><option value="candles">Candlesticks</option><option value="line">Price line</option></select></label><label>Height<select id="chartHeight"><option value="compact">Compact</option><option value="standard">Standard</option><option value="tall">Tall</option></select></label></div>
+      <div class="appearance-checks"><label><input id="chartGrid" type="checkbox" checked> Gridlines</label><label><input id="chartPriceLine" type="checkbox" checked> Current price</label><label><input id="chartSignals" type="checkbox" checked> Model markers</label><label><input id="chartCrosshair" type="checkbox" checked> Crosshair &amp; OHLC</label></div>
+      <div class="candle-preview"><canvas id="candlePreview" role="img" aria-label="Illustrative bullish and bearish candles showing the current appearance settings"></canvas><p id="candlePreviewCaption" class="preview-caption">Illustrative candles · not market data</p></div>
+    </section>
+    <section class="appearance-section" aria-labelledby="candleAppearanceHeading"><h3 id="candleAppearanceHeading">Candlesticks</h3>
+      <div class="appearance-fields"><label>Body style<select id="candleStyle"><option value="solid">Solid bodies</option><option value="hollow-up">Hollow bullish</option><option value="hollow">Outline only</option></select></label></div>
+      <div class="appearance-ranges">
+        <label class="range-control"><span>Body width <output id="bodyWidthValue" for="bodyWidth">88%</output></span><input id="bodyWidth" type="range" min="40" max="95" step="1" value="88"></label>
+        <label class="range-control"><span>Body opacity <output id="bodyOpacityValue" for="bodyOpacity">100%</output></span><input id="bodyOpacity" type="range" min="30" max="100" step="1" value="100"></label>
+        <label class="range-control"><span>Wick thickness <output id="wickWidthValue" for="wickWidth">1px</output></span><input id="wickWidth" type="range" min="0.5" max="3" step="0.5" value="1"></label>
+      </div>
+      <div class="appearance-checks"><label><input id="candleBorders" type="checkbox" checked> Body borders</label><label><input id="candleWicks" type="checkbox" checked> Show wicks</label><label><input id="matchWicks" type="checkbox" checked> Match wick / body colors</label></div>
+      <div class="candle-colors">
+        <label class="color-control"><input id="wickUpColor" type="color" value="#167d62"><span>Bullish wick<output id="wickUpColorValue" for="wickUpColor">#167d62</output></span></label>
+        <label class="color-control"><input id="wickDownColor" type="color" value="#c8494e"><span>Bearish wick<output id="wickDownColorValue" for="wickDownColor">#c8494e</output></span></label>
+      </div>
+      <p class="appearance-help">Candle controls are available in Candlesticks mode. Independent wick colors are enabled when color matching is off.</p>
+      <button id="resetChartAppearance" class="quiet-button" type="button">Reset chart only</button>
+    </section>
+    <p class="appearance-help">Chart shortcuts: double-click or press R to reset the view. Press L to follow the latest candle. Shortcuts work while the chart is focused.</p>
+    </div>
+    <div class="appearance-footer"><p id="appearanceStatus" class="appearance-status" role="status">Preferences are saved on this browser.</p><div class="appearance-actions"><button id="resetAppearance" class="quiet-button" type="button">Reset all appearance</button><button id="doneAppearance" class="primary-button" type="button">Done</button></div></div>
+  </dialog>
   <div class="shell">
     <div class="page-top">
       <div><p class="eyebrow">Your market, in perspective</p><h1>Solana<span class="title-period">.</span></h1><p class="page-subtitle">A clearer view of the market. An honest view of the model.</p></div>
-      <nav class="tabs" role="tablist" aria-label="Dashboard sections"><button class="tab active" id="overviewTab" role="tab" aria-selected="true" aria-controls="overviewPanel">Overview</button><button class="tab" id="detailsTab" role="tab" aria-selected="false" aria-controls="detailsPanel" tabindex="-1">Research &amp; activity</button></nav>
+
     </div>
     <div class="update-line"><span id="updatedLabel" role="status">Connecting to public market data…</span><span id="refreshChip">Refreshes every 5s</span></div>
     <main id="main">
-      <section id="overviewPanel" class="panel" role="tabpanel" aria-labelledby="overviewTab">
+      <section id="overviewPanel" class="panel" aria-label="Market dashboard">
         <section class="market-strip" aria-label="Market summary">
           <div class="price-block"><span class="eyebrow">SOL / USD <span class="venue">Jupiter Perps · Hyperliquid reference chart</span></span><div class="price-line"><strong id="priceValue">—</strong><span id="priceChange" class="price-change">Waiting for price</span></div></div>
           <div class="market-stat"><span class="eyebrow">Hourly funding</span><strong id="fundingValue">—</strong><span class="stat-foot">Perpetual rate</span></div>
           <div class="market-stat"><span class="eyebrow">Open interest</span><strong id="oiValue">—</strong><span class="stat-foot">Notional USD</span></div>
           <div class="market-stat"><span class="eyebrow">15m volatility</span><strong id="atrValue">—</strong><span class="stat-foot">Average true range</span></div>
         </section>
+        <section class="day-card" aria-label="SOL over the last 24 hours">
+          <div class="day-head">
+            <div><span class="eyebrow">Last 24 hours</span><h2 class="day-title">SOL through the day</h2></div>
+            <div class="day-stats">
+              <span id="dayChange" class="price-change">Waiting for data</span>
+              <span class="day-stat">High <strong id="dayHigh">—</strong></span>
+              <span class="day-stat">Low <strong id="dayLow">—</strong></span>
+            </div>
+          </div>
+          <canvas id="dayChart" role="img" aria-label="SOL price over the last 24 hours"></canvas>
+        </section>
         <div class="workspace">
           <section class="chart-panel" aria-labelledby="chartHeading">
-            <div class="chart-header"><div><span class="eyebrow">The market</span><h2 id="chartHeading">Price action <span id="chartTimeframe" class="chart-timeframe">1m</span></h2></div><div class="chart-actions"><div id="chartIntervals" class="chart-intervals" role="group" aria-label="Candle interval"><button type="button" data-tf="1m" aria-pressed="true">1m</button><button type="button" data-tf="5m" aria-pressed="false">5m</button><button type="button" data-tf="15m" aria-pressed="false">15m</button></div><button id="chartSettingsToggle" class="quiet-button" type="button" aria-expanded="false" aria-controls="chartSettings">Customize</button><button id="resetZoom" class="quiet-button" type="button" aria-label="Reset chart zoom">Reset view <span aria-hidden="true">&#8599;</span></button></div></div>
+            <div class="chart-header"><div><span class="eyebrow">The market</span><h2 id="chartHeading">Price action <span id="chartTimeframe" class="chart-timeframe">1m</span></h2></div><div class="chart-actions"><div id="chartIntervals" class="chart-intervals" role="group" aria-label="Candle interval"><button type="button" data-tf="1m" aria-pressed="true">1m</button><button type="button" data-tf="5m" aria-pressed="false">5m</button><button type="button" data-tf="15m" aria-pressed="false">15m</button></div><button id="chartSettingsToggle" class="quiet-button" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="appearanceDialog">Customize</button><button id="followLive" class="quiet-button chart-live" type="button" aria-pressed="true" title="Follow the latest candle (L while chart is focused)">Following latest</button><button id="resetZoom" class="quiet-button" type="button" aria-label="Reset chart zoom">Reset view <span aria-hidden="true">&#8599;</span></button></div></div>
             <p id="chartIntervalStatus" class="chart-interval-status" role="status"></p>
-            <div id="chartSettings" class="chart-settings" hidden>
-              <label>Chart style<select id="chartStyle"><option value="candles">Candlesticks</option><option value="line">Price line</option></select></label>
-              <label>Height<select id="chartHeight"><option value="compact">Compact</option><option value="standard">Standard</option><option value="tall">Tall</option></select></label>
-              <label><input id="chartGrid" type="checkbox" checked> Gridlines</label>
-              <label><input id="chartPriceLine" type="checkbox" checked> Current price</label>
-              <label><input id="chartSignals" type="checkbox" checked> Model markers</label>
-              <button id="resetChartAppearance" class="quiet-button" type="button">Reset appearance</button>
-              <p id="appearanceStatus" role="status">Saved on this browser. Chart appearance never changes the model.</p>
-            </div>
-            <canvas id="chart" class="chart" role="img" aria-label="SOL perpetual candlesticks. Drag to pan or scroll to zoom. Current price is shown in the market summary."></canvas>
+            <p id="chartReadout" class="chart-readout">Hover to inspect OHLC · Drag to pan · Scroll to zoom</p>
+            <canvas id="chart" class="chart" tabindex="0" aria-keyshortcuts="R L" role="img" aria-label="SOL perpetual candlesticks. Drag to pan or scroll to zoom. Press R to reset or L to follow the latest candle. Current price is shown in the market summary."></canvas>
             <div class="chart-footer"><span>Drag to explore · Scroll to zoom</span><span id="chartRangeLabel">Waiting for candles</span></div>
           </section>
-          <aside class="decision-card" id="decisionCard" aria-label="Model assessment">
-            <div class="decision-topline"><span class="eyebrow">The model</span><span id="decisionHorizon" class="horizon-pill">15 min</span></div>
-            <div class="decision-primary"><span class="validation-badge" id="modelState">Validation not passed</span><h2 id="verdictValue">STAND ASIDE</h2><p id="decisionReason">Waiting for the latest model assessment.</p></div>
-            <dl class="decision-reads"><div><dt>Model lean</dt><dd id="modelLean">—</dd><small>Raw output, not proven odds</small></div><div><dt>Indicator balance</dt><dd id="evidenceLean">—</dd><small>Context, not a trade signal</small></div></dl>
-            <section class="overview-probabilities" aria-labelledby="rawProbabilitiesHeading"><h3 id="rawProbabilitiesHeading">Raw model probabilities</h3><div id="overviewProbabilityBars" class="probability-bars"><p class="probability-placeholder">Waiting for model output…</p></div><p>Long, flat, and short outputs. Not validated confidence.</p></section>
-            <div class="validation-note" id="validationNote">No validated edge has been established. No order execution.</div>
-            <button class="text-button" id="viewEvidence" type="button">View indicators <span aria-hidden="true">→</span></button>
-          </aside>
+
         </div>
         <div class="flow-line"><span id="flowText">Waiting for 15m taker flow</span><span id="flowSizes"></span><span class="flow-spacer"></span><span id="latencyText">Waiting for live tick</span><span id="clockText">— UTC</span></div>
         <p class="chart-disclaimer">Chart markers show historical model calls, not executed trades. A model lean is not a recommendation.</p>
+          <section class="decision-card model-panel" id="decisionCard" aria-labelledby="modelPanelHeading">
+            <div class="decision-topline"><div><span class="eyebrow">Research forecast</span><h2 id="modelPanelHeading">The model</h2></div><div class="forecast-controls"><label>Forecast horizon<select id="horizonSelect"><option value="5m">5 minutes</option><option value="15m" selected>15 minutes</option><option value="60m">60 minutes</option></select></label><span id="decisionHorizon" class="horizon-pill">15 min</span></div></div>
+            <p id="horizonStatus" class="horizon-status" role="status"></p><div class="model-panel-body"><div class="model-assessment"><div class="decision-primary"><span class="validation-badge" id="modelState">Validation not passed</span><h2 id="verdictValue">STAND ASIDE</h2><p id="decisionReason">Waiting for the latest model assessment.</p></div>
+            <dl class="decision-reads"><div><dt>Model lean</dt><dd id="modelLean">—</dd><small>Raw output, not proven odds</small></div><div><dt>Indicator balance</dt><dd id="evidenceLean">—</dd><small>Context, not a trade signal</small></div></dl>
+            </div><section class="overview-probabilities" aria-labelledby="rawProbabilitiesHeading"><h3 id="rawProbabilitiesHeading">Raw model probabilities</h3><div id="overviewProbabilityBars" class="probability-bars"><p class="probability-placeholder">Waiting for model output…</p></div><p>Long, flat, and short outputs. Not validated confidence.</p></section>
+            </div><details class="model-details"><summary>Validation &amp; model details</summary><div class="validation-note" id="validationNote">No validated edge has been established. No order execution.</div></details>
+            <button class="text-button" id="viewEvidence" type="button">View indicators <span aria-hidden="true">→</span></button>
+          </section>
           <section class="detail-card indicators-card" id="indicatorsCard" aria-labelledby="indicatorsHeading" tabindex="-1"><div class="section-heading"><div><span class="eyebrow">Market context</span><h2 id="indicatorsHeading">What the indicators see</h2></div><span class="vote-summary" id="detailVoteSummary">—</span></div><p class="indicator-legend"><span class="up">Long / bullish</span><span class="down">Short / bearish</span><span>Neutral / no directional bias</span></p><div class="table-wrap"><table><thead><tr><th>Signal</th><th>Reading</th><th>Bias</th><th>Interpretation</th></tr></thead><tbody id="evidenceRows"><tr><td colspan="4" class="empty-cell">Waiting for market data…</td></tr></tbody></table></div></section>
-        <section class="detail-card"><div class="section-heading"><div><span class="eyebrow">Jupiter Perps · Read-only</span><h2>Profits &amp; recent trades</h2></div><span class="wallet-address" id="walletAddress">No address loaded</span></div><div id="accountStatus" class="account-status" role="status">Configure a public address in Research &amp; activity to view activity.</div><div id="accountSummary" class="account-summary"></div><div class="table-wrap"><table><thead><tr><th>Time (UTC)</th><th>Market</th><th>Side</th><th>Action</th><th>Price</th><th>Fee</th><th>Reported P&amp;L</th><th>Est. after fees</th></tr></thead><tbody id="tradeRows"><tr><td colspan="8" class="empty-cell">No activity loaded.</td></tr></tbody></table></div><p class="detail-footnote">Totals cover only the returned recent Jupiter trade window, across all markets, not lifetime profits or bot performance. Estimated net = reported P&amp;L on decrease events minus reported fees on all returned events, including opens. The API does not specify whether trade P&amp;L already includes fees; the estimate may double-count them. Excludes network, priority, swap and integrator costs, unrealized P&amp;L and fees outside this window. This dashboard cannot place orders.</p></section>
-      </section>
-      <section id="detailsPanel" class="panel details-panel" role="tabpanel" aria-labelledby="detailsTab" hidden>
-        <div class="details-heading"><div><p class="eyebrow">Behind the brief</p><h2>Less noise. More context.</h2><p>Inspect the inputs, understand the limitations, and review public activity.</p></div><span class="read-only">Public data only</span></div>
-        <section class="detail-card settings-card" aria-labelledby="settingsHeading"><div class="section-heading"><div><span class="eyebrow">Preferences</span><h2 id="settingsHeading">Make the view yours</h2></div></div><form id="settingsForm"><div class="settings-row"><label>Forecast horizon<select id="horizonSelect"><option value="5m">5 minutes</option><option value="15m" selected>15 minutes</option><option value="60m">60 minutes</option></select></label><label class="wallet-setting">Public Solana address<input id="walletInput" type="text" spellcheck="false" autocomplete="off" placeholder="Optional public address" maxlength="64"></label><button id="applySettings" class="primary-button" type="submit">Save preferences</button></div><p id="settingsStatus" class="settings-status" role="status"></p></form><p class="detail-footnote">Forecast horizon selects the model. Choose the candle interval directly above the chart; it does not change the model. Never enter a private key or seed phrase.</p></section>
-        <div class="research-grid">
-
-          <section class="detail-card probability-card"><div class="section-heading"><div><span class="eyebrow">Inside the model</span><h2>Raw probabilities</h2></div></div><div id="probabilityBars" class="probability-bars"></div><p class="detail-footnote">These are model outputs, not validated win probabilities. The saved models have not passed the walk-forward promotion gate.</p></section>
+        <div class="account-section">
+        <section class="detail-card"><div class="section-heading"><div><span class="eyebrow">Jupiter Perps · Read-only</span><h2>Profits &amp; recent trades</h2></div><span class="wallet-address" id="walletAddress">No address loaded</span></div><div id="accountStatus" class="account-status" role="status">Enter a public address below to view activity.</div><div id="accountSummary" class="account-summary"></div><div class="table-wrap"><table><thead><tr><th>Time (UTC)</th><th>Market</th><th>Side</th><th>Action</th><th>Price</th><th>Fee</th><th>Reported P&amp;L</th><th>Est. after fees</th></tr></thead><tbody id="tradeRows"><tr><td colspan="8" class="empty-cell">No activity loaded.</td></tr></tbody></table></div><p class="detail-footnote">Totals cover only the returned recent Jupiter trade window, across all markets, not lifetime profits or bot performance. Estimated net = reported P&amp;L on decrease events minus reported fees on all returned events, including opens. The API does not specify whether trade P&amp;L already includes fees; the estimate may double-count them. Excludes network, priority, swap and integrator costs, unrealized P&amp;L and fees outside this window. This dashboard cannot place orders.</p></section>
         </div>
 
+        <section class="detail-card settings-card" aria-labelledby="settingsHeading"><div class="section-heading"><div><span class="eyebrow">Preferences</span><h2 id="settingsHeading">Wallet settings</h2></div></div><form id="settingsForm"><div class="settings-row"><label class="wallet-setting">Public Solana address<input id="walletInput" type="text" spellcheck="false" autocomplete="off" placeholder="Optional public address" maxlength="64"></label><button id="applySettings" class="primary-button" type="submit">Save preferences</button></div><p id="settingsStatus" class="settings-status" role="status"></p></form><p class="detail-footnote">Choose the forecast horizon on the overview model panel. Never enter a private key or seed phrase.</p></section>
         <section class="detail-card"><div class="section-heading"><div><span class="eyebrow">Observation, not a backtest</span><h2>How past calls moved</h2></div><span class="unverified-tag">Descriptive only</span></div><div id="scoringSummary" class="scoring-summary">Waiting for matured signals.</div><div class="table-wrap"><table><thead><tr><th>Time (UTC)</th><th>Model call</th><th>P(long)</th><th>P(short)</th><th>Signal price</th><th>Later price</th><th>Move</th></tr></thead><tbody id="scoringRows"><tr><td colspan="7" class="empty-cell">No matured signals loaded.</td></tr></tbody></table></div><p class="detail-footnote">Directional movement only. Excludes fees, slippage, and executable trade paths; it is not a performance or accuracy claim.</p></section>
       </section>
     </main>

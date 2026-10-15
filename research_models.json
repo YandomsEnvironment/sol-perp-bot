@@ -1,0 +1,5 @@
+{
+  "fast": "candidates/replay_v3bag/fast_forward_20261015T080439Z.pkl",
+  "mid": "candidates/replay_db20mid/mid_forward_20261015T105421Z.pkl",
+  "slow": "candidates/replay_sim2slow/slow_forward_20261015T105354Z.pkl"
+}

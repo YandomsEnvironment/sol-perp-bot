@@ -1,0 +1,58 @@
+/* The model has its own reading space, separate from the market chart. */
+.workspace { grid-template-columns: minmax(0, 1fr); }
+.model-panel {
+  display: block;
+  padding: 28px 32px;
+  margin: 24px 0;
+  min-width: 0;
+}
+.model-panel .decision-topline { gap: 20px; padding-bottom: 24px; }
+.model-panel h2#modelPanelHeading {
+  margin: 4px 0 0;
+  font-size: 25px;
+  font-weight: 600;
+  letter-spacing: -.035em;
+}
+.model-panel-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 40px;
+  padding-bottom: 26px;
+}
+.model-assessment { min-width: 0; }
+.model-panel .decision-primary { margin: 0; }
+.model-panel .decision-primary h2 { font-size: 34px; margin: 14px 0 8px; }
+.model-panel .decision-primary p { max-width: 52ch; }
+.model-panel .decision-reads {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+  margin: 24px 0 0;
+}
+.model-panel .decision-reads div { display: flex; flex-direction: column; gap: 6px; }
+.model-panel .decision-reads dd { font-size: 16px; }
+.model-panel .overview-probabilities {
+  border-top: 0;
+  border-left: 0;
+  padding: 4px 0 0;
+  margin: 0;
+  grid-column: auto;
+}
+.model-panel .overview-probabilities h3 { font-size: 18px; margin-bottom: 28px; }
+.model-panel .overview-probabilities .probability-bars { grid-template-columns: 1fr; gap: 26px; }
+.model-panel .overview-probabilities .prob-row { grid-template-columns: 48px minmax(0, 1fr) 76px; gap: 16px; font-size: 16px; }
+.model-panel .overview-probabilities .prob-track { height: 22px; border-radius: 5px; }
+.model-panel .overview-probabilities .prob-fill { height: 100%; border-radius: 5px; }
+.model-panel .overview-probabilities .prob-value { font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.model-panel .overview-probabilities > p { font-size: 11px; margin-top: 22px; }
+.model-details { border-top: 0; padding-top: 18px; }
+.model-details summary { cursor: pointer; color: var(--muted); font-size: 12px; width: fit-content; }
+.model-details summary:focus-visible { outline: 3px solid #0071e3; outline-offset: 5px; }
+.model-panel .validation-note { border: 0; margin: 0; padding: 14px 0 0; overflow-wrap: anywhere; }
+.model-panel .text-button { gap: 16px; justify-content: flex-start; padding-top: 18px; }
+@media (max-width: 700px) {
+  .model-panel { padding: 24px; }
+  .model-panel-body { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .model-panel .overview-probabilities { border: 0; padding: 12px 0 0; }
+  .model-panel .overview-probabilities .prob-row { grid-template-columns: 40px minmax(0, 1fr) 66px; gap: 10px; }
+  .model-panel .decision-reads { gap: 16px; }
+}
