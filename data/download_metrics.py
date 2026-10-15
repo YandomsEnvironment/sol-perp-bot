@@ -18,30 +18,35 @@ from datetime import date, timedelta
 from pathlib import Path
 
 import pandas as pd
+import requests
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "data_store" / "metrics_SOL.parquet"
 BASE = "https://data.binance.vision/data/futures/um/daily/metrics/SOLUSDT"
 COLS = ["create_time", "sum_open_interest", "sum_open_interest_value",
         "sum_taker_long_short_vol_ratio"]
+_SESSION = requests.Session()
 
 
-def fetch(day: date, tries: int = 3):
+def fetch(day: date, tries: int = 2):
+    import io
     import time
     url = f"{BASE}/SOLUSDT-metrics-{day.isoformat()}.zip"
     for attempt in range(tries):
         try:
-            with urllib.request.urlopen(url, timeout=30) as r:
-                raw = r.read()
-            z = zipfile.ZipFile(io.BytesIO(raw))
+            with urllib.request.urlopen(url, timeout=15) as r:
+                content = r.read()
+            z = zipfile.ZipFile(io.BytesIO(content))
             df = pd.read_csv(io.BytesIO(z.read(z.namelist()[0])), usecols=COLS)
-            df["timestamp"] = (pd.to_datetime(df["create_time"], utc=True)
-                               .astype("datetime64[ns]").astype("int64") // 10**6)
+            df["timestamp"] = ((pd.to_datetime(df["create_time"], utc=True)
+                                - pd.Timestamp(0, tz="UTC"))
+                               // pd.Timedelta(milliseconds=1)).astype("int64")
             return df.drop(columns="create_time")
-        except Exception:
+        except Exception as exc:
             if attempt == tries - 1:
+                print(f"  {day} failed: {str(exc)[:80]}", flush=True)
                 return None
-            time.sleep(1.5 * (attempt + 1))
+            time.sleep((attempt + 1) * 2)
 
 
 def main():
@@ -55,31 +60,35 @@ def main():
     print(f"fetching {len(days)} daily metric files ...", flush=True)
     frames = [None] * len(days)
     done_count = 0
-    with ThreadPoolExecutor(max_workers=2) as ex:
+    import time as _t
+    with ThreadPoolExecutor(max_workers=1) as ex:
         futures = {ex.submit(fetch, d): i for i, d in enumerate(days)}
-        for fut in futures:
-            pass
         from concurrent.futures import as_completed
         for fut in as_completed(futures):
             i = futures[fut]
             frames[i] = fut.result()
             done_count += 1
+            _t.sleep(0.1)
             if done_count % 25 == 0:
                 print(f"  {done_count}/{len(days)} ...", flush=True)
     ok = [f for f in frames if f is not None and len(f)]
     print(f"got {len(ok)}/{len(days)} files", flush=True)
     if not ok:
         sys.exit("no data downloaded")
-    out = (pd.concat(ok, ignore_index=True)
-           .drop_duplicates("timestamp").sort_values("timestamp")
-           .rename(columns={"sum_open_interest": "open_interest",
-                            "sum_open_interest_value": "open_interest_usd",
-                            "sum_taker_long_short_vol_ratio": "taker_ls_ratio"}))
+    fresh = (pd.concat(ok, ignore_index=True)
+             .drop_duplicates("timestamp").sort_values("timestamp")
+             .rename(columns={"sum_open_interest": "open_interest",
+                              "sum_open_interest_value": "open_interest_usd",
+                              "sum_taker_long_short_vol_ratio": "taker_ls_ratio"}))
+    if OUT.exists():  # chunked/resumable runs merge into one store
+        old = pd.read_parquet(OUT)
+        fresh = (pd.concat([old, fresh], ignore_index=True)
+                 .drop_duplicates("timestamp").sort_values("timestamp"))
     OUT.parent.mkdir(exist_ok=True)
-    out.to_parquet(OUT, index=False)
-    print(f"wrote {OUT}: {len(out)} rows, "
-          f"{pd.to_datetime(out.timestamp.min(), unit='ms')} -> "
-          f"{pd.to_datetime(out.timestamp.max(), unit='ms')}", flush=True)
+    fresh.to_parquet(OUT, index=False)
+    print(f"wrote {OUT}: {len(fresh)} rows, "
+          f"{pd.to_datetime(fresh.timestamp.min(), unit='ms')} -> "
+          f"{pd.to_datetime(fresh.timestamp.max(), unit='ms')}", flush=True)
 
 
 if __name__ == "__main__":

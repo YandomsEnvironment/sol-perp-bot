@@ -123,7 +123,11 @@ deadband optimum is horizon-dependent (13bp at 5m, 20bp at 15m/60m — wider
 deadbands degenerate the flat class); barrier-target labels degenerate at all
 horizons; meta-label call filtering helps only at the 5m horizon; expected-move
 regression gating never fires (predictions shrink below 1x cost); taker-flow
-features (contract v4) add nothing at 15m/60m.
+features (contract v4) add nothing at 15m/60m; positioning features (contract
+v5: funding + Binance Vision open-interest history via
+`data\download_metrics.py`) also add nothing at any horizon (dlog-loss within
+noise of v3; gated profit factor worse) — the model is at the information
+ceiling of aggregate public data at these horizons.
 
 Simulator correction (2026-10-15): `path_returns` barriers were scaled by the
 raw 1-minute ATR, making the take-profit smaller than the fee at 15m/60m
