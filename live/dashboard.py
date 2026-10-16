@@ -28,7 +28,7 @@ WEB_ROOT = Path(__file__).resolve().parent / "web"
 SIGNALS_LOG = config.LOGS_DIR / "signals.jsonl"
 CLASS_NAMES = {0: "FLAT", 1: "LONG", 2: "SHORT"}
 TIMEFRAMES = {"1m": 60_000, "5m": 300_000, "15m": 900_000,
-              "1h": 3_600_000, "4h": 14_400_000}
+              "1h": 3_600_000, "4h": 14_400_000, "1d": 86_400_000}
 HORIZONS = {"5m": ("fast", 5), "15m": ("mid", 15), "60m": ("slow", 60)}
 _CACHE: dict[str, tuple[float, object]] = {}
 _CACHE_LOCK = threading.Lock()
@@ -118,7 +118,7 @@ def get_data():
 
 def get_chart_candles(tf: str) -> pd.DataFrame:
     global _LAST_CHART
-    days = {"1m": 2, "5m": 4, "15m": 7, "1h": 14, "4h": 30}[tf]
+    days = {"1m": 2, "5m": 4, "15m": 7, "1h": 14, "4h": 30, "1d": 180}.get(tf, 7)
     def fetch():
         now = int(time.time() * 1000)
         try:
@@ -223,7 +223,7 @@ def recorder_snapshots() -> dict:
 
 def build_evidence(f: pd.Series, snap: dict, cross: dict | None = None) -> tuple[pd.DataFrame, dict]:
     f = f.reindex([*f.index, *[name for name in
-        ("ema_x", "ema20_dist", "rsi14", "ret_1h", "ret_4h", "btc_ret_15m",
+        ("ema_x", "ema20_dist", "rsi14", "ret_1h", "ret_4h", "ret_1d", "btc_ret_15m",
          "funding", "ret_15m", "vol_z_60", "ret_5m") if name not in f.index]])
     rows = []
     if cross:
@@ -244,6 +244,14 @@ def build_evidence(f: pd.Series, snap: dict, cross: dict | None = None) -> tuple
     else:
         vote, why = "NEUTRAL", "timeframes disagree or are flat"
     rows.append(("Higher timeframe (1h/4h)", f"{r1h*100:+.2f}% / {r4h*100:+.2f}%", vote, why))
+    r1d = float(f["ret_1d"]) if "ret_1d" in f.index and np.isfinite(f["ret_1d"]) else 0.0
+    if r1d > 0.015:
+        m_vote, m_why = "LONG", "24h macro momentum agrees"
+    elif r1d < -0.015:
+        m_vote, m_why = "SHORT", "24h macro momentum agrees"
+    else:
+        m_vote, m_why = "NEUTRAL", "24h macro momentum quiet"
+    rows.append(("Macro trend (24h)", f"{r1d*100:+.2f}%", m_vote, m_why))
     btc = float(f["btc_ret_15m"])
     rows.append(("BTC lead (15m)", f"{btc*100:+.2f}%",
                  "LONG" if btc > .0015 else "SHORT" if btc < -.0015 else "NEUTRAL",
@@ -414,7 +422,7 @@ def market_snapshot(settings: dict) -> dict:
             chart = (pd.concat([chart[chart["timestamp"] < int(live_candles["timestamp"].min())],
                                 live_candles]).drop_duplicates("timestamp", keep="last")
                      .sort_values("timestamp").reset_index(drop=True))
-    chart = chart.tail({"1m": 2880, "5m": 1152, "15m": 672, "1h": 336, "4h": 180}[tf])
+    chart = chart.tail({"1m": 2880, "5m": 1152, "15m": 672, "1h": 336, "4h": 180, "1d": 180}.get(tf, 180))
     chart_rows = chart.to_dict(orient="records")
     signals = []
     if not quality_errors and SIGNALS_LOG.exists():
@@ -519,8 +527,10 @@ def market_snapshot(settings: dict) -> dict:
             "atr_percentile": atr_percentile,
             "range_position_1h": float(feats["range_pos_60"].iloc[-1]),
             "rsi14": float(feats["rsi14"].iloc[-1]),
+            "ret_15m": float(feats["ret_15m"].iloc[-1]),
             "ret_1h": float(feats["ret_1h"].iloc[-1]),
             "ret_4h": float(feats["ret_4h"].iloc[-1]),
+            "ret_1d": float(feats["ret_1d"].iloc[-1]) if "ret_1d" in feats.columns and np.isfinite(feats["ret_1d"].iloc[-1]) else 0.0,
             "btc_ret_15m": float(feats["btc_ret_15m"].iloc[-1]),
             "oi_change_1h": snap.get("oi_chg_1h")},
         "candles": chart_rows, "signals": signals,

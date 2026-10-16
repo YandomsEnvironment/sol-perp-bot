@@ -103,13 +103,24 @@ def get_paper_trades() -> dict | None:
 def format_price_message(s: dict) -> str:
     price = s.get("price", 0.0)
     ret15 = s.get("price_change_15m", 0.0) * 100
+    ctx = s.get("market_context") or {}
+    r1h = ctx.get("ret_1h", 0.0) * 100
+    r4h = ctx.get("ret_4h", 0.0) * 100
+    r1d = ctx.get("ret_1d", 0.0) * 100
     funding = float(s.get("funding") or 0.0) * 100
     oi = float(s.get("open_interest_usd") or 0.0) / 1e6
-    sign = "+" if ret15 >= 0 else ""
+    s15 = "+" if ret15 >= 0 else ""
+    s1h = "+" if r1h >= 0 else ""
+    s4h = "+" if r4h >= 0 else ""
+    s1d = "+" if r1d >= 0 else ""
     return (
-        f"<b>⚡ Solana Market Snapshot</b>\n\n"
-        f"💰 <b>Price:</b> ${price:,.2f}\n"
-        f"📈 <b>15m Change:</b> {sign}{ret15:.2f}%\n"
+        f"<b>⚡ Solana Multi-Timeframe Snapshot</b>\n\n"
+        f"💰 <b>Reference Price:</b> ${price:,.2f}\n\n"
+        f"<b>Momentum Across Timeframes:</b>\n"
+        f"• ⏱ <b>15m:</b> <code>{s15}{ret15:.2f}%</code>\n"
+        f"• 🕐 <b>1h:</b>  <code>{s1h}{r1h:.2f}%</code>\n"
+        f"• 🕓 <b>4h:</b>  <code>{s4h}{r4h:.2f}%</code>\n"
+        f"• 📅 <b>24h:</b> <code>{s1d}{r1d:.2f}%</code>\n\n"
         f"📊 <b>Hourly Funding:</b> {funding:.4f}%\n"
         f"🏦 <b>Open Interest:</b> ${oi:.1f}M USD\n"
         f"⏱ <i>Updated at {time.strftime('%H:%M:%S UTC')}</i>"
@@ -123,6 +134,7 @@ def format_signal_message(s: dict) -> str:
     tally = s.get("evidence_tally", {})
     cross = s.get("cross_horizon", {}) or {}
     chop = s.get("chop_filter", {}) or {}
+    ctx = s.get("market_context") or {}
 
     p_long = proba.get("long", 0.0) * 100
     p_flat = proba.get("flat", 0.0) * 100
@@ -149,6 +161,13 @@ def format_signal_message(s: dict) -> str:
             f"• ATR Percentile: {atr_pctile:.1f}% (Above {min_pctile:.0f}% threshold)\n\n"
         )
 
+    r1h = ctx.get("ret_1h", 0.0) * 100
+    r4h = ctx.get("ret_4h", 0.0) * 100
+    r1d = ctx.get("ret_1d", 0.0) * 100
+    s1h = "+" if r1h >= 0 else ""
+    s4h = "+" if r4h >= 0 else ""
+    s1d = "+" if r1d >= 0 else ""
+
     return (
         f"<b>{tone} SOL Forecast & Multi-Horizon Consensus</b>\n\n"
         f"• <b>Active Model Lean:</b> <code>{lean}</code>\n"
@@ -156,6 +175,8 @@ def format_signal_message(s: dict) -> str:
         f"• <b>Multi-Horizon Read:</b> {consensus_text}\n"
         f"• <b>Consensus Note:</b> <i>{consensus_why}</i>\n\n"
         f"{vol_status}"
+        f"🌐 <b>Higher Timeframe Alignment:</b>\n"
+        f"• 1h: <code>{s1h}{r1h:.2f}%</code> | 4h: <code>{s4h}{r4h:.2f}%</code> | 24h: <code>{s1d}{r1d:.2f}%</code>\n\n"
         f"📊 <b>Calibrated Probabilities:</b>\n"
         f"  📈 Long: {p_long:.1f}%\n"
         f"  ⚪ Flat: {p_flat:.1f}%\n"
