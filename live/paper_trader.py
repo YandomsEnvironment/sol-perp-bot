@@ -1,8 +1,8 @@
-"""Paper trading engine and forward PnL tracker for Jupiter Perps.
+"""Paper trading engine and forward PnL tracker for Lightning (Zero Fees).
 
 Simulates execution against live reference price feeds with accurate fee accounting:
-- Fixed Jupiter Perps pool execution fee: $0.65 USD per trade / side ($1.30 round trip)
-- Realistic slippage: 2 bps per side
+- Zero execution fees on Lightning ($0.00 USD per trade / side)
+- Realistic slippage: 0 bps (zero fees on Lightning)
 - Triple-barrier exits: 2x ATR Take-Profit, 1x ATR Stop-Loss, and max duration timeout
 - Persistent state saved to data_store/paper_trading_state.json and paper_trades.jsonl
 """
@@ -161,6 +161,7 @@ class PaperTrader:
             "expires_at": now_ms + max_hold_ms,
             "model_confidence": model_confidence,
             "entry_fee_usd": self.fee_per_side,
+            "venue": config.EXECUTION_VENUE,
             "status": "OPEN",
         }
         self.active_position = pos
@@ -224,6 +225,7 @@ class PaperTrader:
             "net_pnl_usd": net_pnl_usd,
             "net_return_pct": net_return_pct,
             "model_confidence": pos.get("model_confidence", 0.0),
+            "venue": config.EXECUTION_VENUE,
             "is_win": net_pnl_usd > 0,
         }
 

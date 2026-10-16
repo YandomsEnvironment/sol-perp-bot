@@ -180,3 +180,22 @@ def test_paper_trading_persistence(tmp_path):
     assert trader2.cash_balance == pytest.approx(trader1.cash_balance)
     assert len(trader2.closed_trades) == 1
     assert trader2.closed_trades[0]["exit_reason"] == "TAKE_PROFIT"
+
+
+def test_paper_trader_lightning_zero_fees(tmp_path):
+    trader = PaperTrader(
+        state_file=tmp_path / "lightning_state.json",
+        history_file=tmp_path / "lightning_history.jsonl",
+        starting_balance=10000.0,
+        position_notional=1000.0,
+        fee_per_side=0.0,
+        slippage_rate=0.0,
+    )
+    trader.open_position(direction="LONG", price=150.0, atr_pct=0.01)
+    closed = trader.close_position(exit_price=153.0, reason="TAKE_PROFIT")
+    assert closed["fixed_fees_usd"] == 0.0
+    assert closed["total_fees_usd"] == 0.0
+    assert closed["gross_pnl_usd"] == pytest.approx(closed["net_pnl_usd"])
+    assert closed["gross_pnl_usd"] == pytest.approx(20.0)  # (153/150 - 1) * 1000 = +$20.00
+    assert trader.cash_balance == pytest.approx(10020.0)
+    assert closed["venue"] == "Lightning"

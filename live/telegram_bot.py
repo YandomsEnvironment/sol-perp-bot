@@ -3,8 +3,8 @@
 Features:
 - Pushes real-time alerts when multi-horizon consensus confirms a LONG or SHORT.
 - Low-volatility chop filter: suppresses alerts during sideways compression.
-- Forward paper trading & PnL tracker with realistic Jupiter Perps fees ($0.65/side).
-- Interactive commands: /price, /signals, /pnl, /trades, /status, /start.
+- Forward paper trading & PnL tracker with 0 fees (Lightning).
+- Interactive commands: /price, /signals, /plan, /pnl, /trades, /status, /start.
 - Auto-detects and binds your Telegram Chat ID upon sending /start.
 """
 from __future__ import annotations
@@ -168,8 +168,12 @@ def format_signal_message(s: dict) -> str:
     s4h = "+" if r4h >= 0 else ""
     s1d = "+" if r1d >= 0 else ""
 
+    hz_min = s.get("horizon_min", 15)
+    hz_label = f"{hz_min//1440}d" if hz_min >= 1440 else (f"{hz_min//60}h" if hz_min >= 60 else f"{hz_min}m")
+
     return (
-        f"<b>{tone} SOL Forecast & Multi-Horizon Consensus</b>\n\n"
+        f"<b>{tone} SOL Forecast & Consensus ({hz_label})</b>\n\n"
+        f"• <b>Forecast Horizon:</b> <code>{hz_label}</code> ({hz_min} min)\n"
         f"• <b>Active Model Lean:</b> <code>{lean}</code>\n"
         f"• <b>Reference Price:</b> ${price:,.2f}\n"
         f"• <b>Multi-Horizon Read:</b> {consensus_text}\n"
@@ -223,13 +227,13 @@ def format_pnl_message(paper: dict) -> str:
         active_str = "• <i>None (Standing aside in cash)</i>"
 
     return (
-        f"<b>📊 Jupiter Perps Forward Paper Trading</b>\n\n"
+        f"<b>📊 Lightning Forward Paper Trading (0 Fees)</b>\n\n"
         f"💰 <b>Virtual Equity:</b> ${equity:,.2f} (<code>{ret_sign}{net_ret:.2f}%</code>)\n"
         f"💵 <b>Cash Balance:</b> ${balance:,.2f} (Net: {sign}${net_pnl:.2f})\n"
         f"🎯 <b>Total Closed Trades:</b> {total} ({wins}W / {losses}L)\n"
         f"🏆 <b>Win Rate:</b> {win_rate:.1f}%\n"
         f"📈 <b>Profit Factor:</b> {pf:.2f}\n"
-        f"💸 <b>Jupiter Fees Paid:</b> ${fees:.2f} ($0.65 USD / side)\n"
+        f"💸 <b>Execution Fees Paid:</b> ${fees:.2f} (0 fees on Lightning)\n"
         f"📉 <b>Max Drawdown:</b> ${max_dd:.2f} ({max_dd_pct:.1f}%)\n\n"
         f"<b>Active Position:</b>\n{active_str}\n\n"
         f"⏱ <i>Updated at {time.strftime('%H:%M:%S UTC')}</i>"
@@ -241,7 +245,7 @@ def format_trades_message(paper: dict) -> str:
     if not trades:
         return "<b>📜 Recent Paper Trades</b>\n\nNo paper trades closed yet."
 
-    lines = ["<b>📜 Recent Paper Trades (Jupiter Perps)</b>\n"]
+    lines = ["<b>📜 Recent Paper Trades (Lightning 0-Fee)</b>\n"]
     for i, t in enumerate(trades[:6], 1):
         d = t.get("direction", "LONG")
         tone = "🟢" if d == "LONG" else "🔴"
@@ -263,7 +267,7 @@ def format_trades_message(paper: dict) -> str:
 def format_wallet_message(act: dict, wallet_addr: str) -> str:
     short_addr = f"{wallet_addr[:6]}...{wallet_addr[-4:]}"
     pos_data = (act.get("positions") or {}).get("dataList") or []
-    lines = [f"<b>🏦 Jupiter Perps Live Wallet</b>\n<code>{short_addr}</code>\n"]
+    lines = [f"<b>🏦 Solana On-Chain Wallet</b>\n<code>{short_addr}</code>\n"]
     if not pos_data:
         lines.append("• <b>Active Position:</b> <i>None (No open positions)</i>")
     else:
@@ -310,6 +314,42 @@ def format_wallet_message(act: dict, wallet_addr: str) -> str:
     return "\n".join(lines)
 
 
+def format_advisor_message(adv: dict) -> str:
+    badge = adv.get("action_badge", "STAND ASIDE")
+    likely = adv.get("likely_direction", "FLAT")
+    prob = adv.get("likely_probability_pct", 0.0)
+    edge = adv.get("edge_pct", 0.0)
+    entry = adv.get("entry_reference", 0.0)
+    tp = adv.get("take_profit_price", 0.0)
+    tp_pct = adv.get("take_profit_pct", 0.0)
+    sl = adv.get("stop_loss_price", 0.0)
+    sl_pct = adv.get("stop_loss_pct", 0.0)
+    be = adv.get("breakeven_price", 0.0)
+    narrative = adv.get("narrative", "")
+    should = adv.get("should_enter", False)
+
+    h_label = adv.get("horizon_label") or (
+        f"{adv.get('horizon_min')}m" if adv.get("horizon_min") else "15m"
+    )
+
+    status_icon = "🟢" if should else "⏸️"
+    dir_icon = "📈" if likely == "LONG" else "📉" if likely == "SHORT" else "⚪"
+
+    return (
+        f"<b>🤖 AI Market Interpreter & Tactical Advisor ({h_label})</b>\n\n"
+        f"• <b>Forecast Horizon:</b> <code>{h_label}</code>\n"
+        f"• <b>Action Verdict:</b> {status_icon} <code>{badge}</code>\n"
+        f"• <b>Most Likely Direction:</b> {dir_icon} <b>{likely}</b> ({prob:.1f}% odds | +{edge:.1f}% edge)\n\n"
+        f"🎯 <b>Tactical Setup & Barriers:</b>\n"
+        f"  • <b>Entry Reference:</b> ${entry:,.2f}\n"
+        f"  • <b>Take-Profit (2x ATR):</b> <code>${tp:,.2f}</code> (+{tp_pct:.2f}%)\n"
+        f"  • <b>Stop-Loss (1x ATR):</b> <code>${sl:,.2f}</code> (-{sl_pct:.2f}%)\n"
+        f"  • <b>Risk / Reward:</b> <code>2.0 : 1</code>\n"
+        f"  • <b>Fee Breakeven Hurdle:</b> ${be:,.2f} ($0.00 / 0 fees on Lightning)\n\n"
+        f"📝 <b>Executive Synthesis:</b>\n<i>{narrative}</i>"
+    )
+
+
 def check_and_alert() -> None:
     global _LAST_ALERT_TIME, _LAST_ALERT_DIRECTION
     global _KNOWN_ACTIVE_TRADE_ID, _LAST_ANNOUNCED_CLOSE_COUNT
@@ -346,8 +386,8 @@ def check_and_alert() -> None:
                 f"{tone} <b>PAPER TRADE CLOSED: {d}</b>\n\n"
                 f"• <b>Exit Reason:</b> <code>{reason}</code>\n"
                 f"• <b>Entry:</b> ${epx:,.2f} ➔ <b>Exit:</b> ${xpx:,.2f}\n"
-                f"• <b>Net PnL (after fees):</b> <b>{sign}${pnl:.2f}</b> ({sign}{ret:.2f}%)\n"
-                f"• <b>Jupiter Fee:</b> $1.30 round trip ($0.65/side)\n"
+                f"• <b>Net PnL:</b> <b>{sign}${pnl:.2f}</b> ({sign}{ret:.2f}%)\n"
+                f"• <b>Lightning Fee:</b> $0.00 (Zero fee execution)\n"
                 f"• <b>Virtual Equity:</b> ${paper.get('current_equity_usd', 0.0):,.2f}"
             )
             send_message(card)
@@ -370,7 +410,7 @@ def check_and_alert() -> None:
                 f"• <b>Entry:</b> ${epx:,.2f}\n"
                 f"• <b>Target (2x ATR):</b> ${tp:,.2f}\n"
                 f"• <b>Stop (1x ATR):</b> ${sl:,.2f}\n"
-                f"• <b>Execution Fee:</b> $0.65 USD entry"
+                f"• <b>Execution Fee:</b> $0.00 (Lightning 0-fee)"
             )
             send_message(card)
     else:
@@ -414,8 +454,8 @@ def check_and_alert() -> None:
         f"🎯 <b>Take-Profit Target (2x ATR):</b> ${tp_price:,.2f}\n"
         f"🛑 <b>Stop-Loss Barrier (1x ATR):</b> ${sl_price:,.2f}\n"
         f"📊 <b>Confidence:</b> {p_val:.1f}%\n"
-        f"💸 <b>Jupiter Perps Fee:</b> ~$0.65 USD / side (~16 bps round-trip)\n\n"
-        f"🔗 <a href='https://jup.ag/perps'>Open Jupiter Perps</a>"
+        f"⚡ <b>Lightning Execution:</b> $0.00 (Zero Fees)\n\n"
+        f"🔗 <a href='https://lightning.exchange'>Open Lightning</a>"
     )
 
     if send_message(alert_text):
@@ -441,7 +481,12 @@ def handle_updates(offset: int) -> int:
 
             sender_chat_id = msg["chat"]["id"]
             user_text = (msg.get("text") or "").strip()
-            cmd = user_text.lower().split()[0].split("@")[0].strip() if user_text else ""
+            parts = user_text.strip().split()
+            cmd = parts[0].lower().split("@")[0].strip() if parts else ""
+            arg = parts[1].lower() if len(parts) > 1 else ""
+            target_hz = arg if arg in ("5m", "15m", "60m", "1h", "4h", "1d") else None
+            if target_hz == "60m":
+                target_hz = "1h"
 
             if cmd in ("/start", "start", "/help", "help"):
                 save_chat_id(sender_chat_id)
@@ -449,15 +494,35 @@ def handle_updates(offset: int) -> int:
                     "👋 <b>Welcome to Solana Market Brief!</b>\n\n"
                     "Your Telegram chat is connected to your local trading bot.\n\n"
                     "• Real-time alerts on multi-horizon consensus & volatility expansion\n"
-                    "• Automated forward paper trading tracker with Jupiter fees\n\n"
+                    "• Automated forward paper trading tracker with Lightning 0 fees\n"
+                    "• AI-driven tactical advisor for entry, SL & TP barriers\n\n"
                     "<b>Commands:</b>\n"
+                    "/plan [horizon] — AI Tactical Setup (e.g. /plan, /plan 1h, /plan 4h, /plan 1d)\n"
+                    "/signals [horizon] — Model forecast & consensus (5m, 15m, 1h, 4h, 1d)\n"
                     "/price — Live SOL price, 15m momentum & funding\n"
-                    "/signals — Current model forecast, consensus & chop filter\n"
                     "/pnl — Forward paper trading performance & open position\n"
+                    "/wallet — Your live on-chain Solana / Lightning positions\n"
                     "/trades — Last closed paper trades with net PnL\n"
                     "/status — Bot health, models & connection status"
                 )
                 send_message(welcome, sender_chat_id)
+
+            elif cmd in ("/plan", "plan", "/advisor", "advisor", "/advice", "advice"):
+                hz_param = f"?hz={target_hz}" if target_hz else ""
+                adv = None
+                try:
+                    r = requests.get(f"{DASHBOARD_URL}/api/advisor{hz_param}", timeout=5)
+                    if r.status_code == 200:
+                        adv = r.json()
+                except Exception:
+                    pass
+                if not adv and not target_hz:
+                    s = get_snapshot()
+                    adv = (s or {}).get("trade_advisor")
+                if adv:
+                    send_message(format_advisor_message(adv), sender_chat_id)
+                else:
+                    send_message(f"⚠️ AI Trade Advisor is currently compiling market metrics{' for ' + target_hz if target_hz else ''}.", sender_chat_id)
 
             elif cmd in ("/price", "price", "sol"):
                 s = get_snapshot()
@@ -467,11 +532,18 @@ def handle_updates(offset: int) -> int:
                     send_message("⚠️ Dashboard API is currently unreachable. Make sure the bot is running.", sender_chat_id)
 
             elif cmd in ("/signals", "/signal", "signal", "signals"):
-                s = get_snapshot()
+                if target_hz:
+                    try:
+                        r = requests.get(f"{DASHBOARD_URL}/api/snapshot?hz={target_hz}", timeout=5)
+                        s = r.json() if r.status_code == 200 else None
+                    except Exception:
+                        s = None
+                else:
+                    s = get_snapshot()
                 if s:
                     send_message(format_signal_message(s), sender_chat_id)
                 else:
-                    send_message("⚠️ Dashboard API is currently unreachable.", sender_chat_id)
+                    send_message(f"⚠️ Dashboard API is currently unreachable{' for ' + target_hz if target_hz else ''}.", sender_chat_id)
 
             elif cmd in ("/pnl", "pnl", "/perf", "perf"):
                 paper = get_paper_trades()
@@ -495,7 +567,7 @@ def handle_updates(offset: int) -> int:
                     if r.status_code == 200:
                         send_message(format_wallet_message(r.json(), w), sender_chat_id)
                     else:
-                        send_message("⚠️ Error fetching wallet activity from Jupiter API.", sender_chat_id)
+                        send_message("⚠️ Error fetching wallet activity from Solana on-chain API.", sender_chat_id)
                 except Exception as exc:
                     send_message(f"⚠️ Error: {exc}", sender_chat_id)
 
@@ -504,8 +576,9 @@ def handle_updates(offset: int) -> int:
                 status_text = (
                     f"🤖 <b>Bot Status: Active & Monitoring</b>\n\n"
                     f"• <b>Live Feed:</b> {'Connected ✅' if s and s.get('feed_connected') else 'Reconnecting ⚠️'}\n"
-                    f"• <b>Active Models:</b> 3 horizons (fast, mid, slow)\n"
-                    f"• <b>Jupiter Fee Standard:</b> $0.65 / side (16 bps deadband)\n"
+                    f"• <b>Execution Venue:</b> Lightning (0 fees) ✅\n"
+                    f"• <b>Fee Drag:</b> 0 bps (Zero fee execution) ✅\n"
+                    f"• <b>Forecast Horizons:</b> 5m, 15m, 1h, 4h, 1d (Macro) ✅\n"
                     f"• <b>Multi-Horizon Filter:</b> Enabled ✅\n"
                     f"• <b>Low-Vol Chop Filter:</b> Enabled (25% ATR threshold) ✅\n"
                     f"• <b>Paper Trading:</b> Active ($10k starting equity) ✅\n"
@@ -515,10 +588,11 @@ def handle_updates(offset: int) -> int:
             elif user_text:
                 send_message(
                     "<b>Commands available:</b>\n"
+                    "/plan [horizon] — AI tactical entry/SL/TP (e.g. /plan 1h, /plan 4h, /plan 1d)\n"
+                    "/signals [horizon] — Model forecast & consensus (5m, 15m, 1h, 4h, 1d)\n"
                     "/price — Live SOL price & stats\n"
-                    "/signals — Model forecast & chop filter\n"
                     "/pnl — Forward paper trading performance\n"
-                    "/wallet — Your live on-chain Jupiter positions\n"
+                    "/wallet — Your live on-chain Solana / Lightning positions\n"
                     "/trades — Recent closed paper trades\n"
                     "/status — Bot health & status",
                     sender_chat_id,

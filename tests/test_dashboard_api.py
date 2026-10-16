@@ -61,7 +61,7 @@ def test_snapshot_keeps_failed_gate_at_stand_aside(monkeypatch, tmp_path):
     assert data["gate_pass"] is False
     assert data["candles"][0]["close"] == 101.0
     assert data["flow"]["buy_share"] == pytest.approx(0.47)
-    assert data["execution_venue"] == "Jupiter Perps"
+    assert data["execution_venue"] == dashboard.config.EXECUTION_VENUE
     assert data["reference_source"] == "Hyperliquid"
     assert data["execution_enabled"] is False
 
@@ -268,3 +268,110 @@ def test_static_routes_prevent_path_traversal():
         server.shutdown()
         server.server_close()
         worker.join(timeout=2)
+
+
+def test_build_trade_advisor():
+    import numpy as np
+    adv = dashboard.build_trade_advisor(
+        price=150.0,
+        pred=1,
+        proba=np.array([0.1, 0.68, 0.22]),
+        cross_info={"agree": True, "vote": "LONG", "details": "All agree"},
+        chop_info={"is_chop": False, "compression_ratio": 1.2, "current_percentile": 45.0},
+        atr=0.01,
+        horizon_min=15,
+        flow={"buy_share": 0.58},
+        market_context={"daily_ret": 0.035},
+    )
+    assert adv["should_enter"] is True
+    assert adv["likely_direction"] == "LONG"
+    assert adv["take_profit_price"] > 150.0
+    assert adv["stop_loss_price"] < 150.0
+    assert adv["risk_reward_ratio"] == "2.0 : 1"
+    assert "ENTER LONG" in adv["action_badge"]
+
+
+def test_build_trade_advisor_stand_aside_chop():
+    import numpy as np
+    adv = dashboard.build_trade_advisor(
+        price=150.0,
+        pred=2,
+        proba=np.array([0.2, 0.26, 0.54]),
+        cross_info={"agree": True, "vote": "SHORT", "details": "Agree"},
+        chop_info={"is_chop": True, "compression_ratio": 0.6, "current_percentile": 12.0},
+        atr=0.005,
+        horizon_min=15,
+        flow={"buy_share": 0.42},
+        market_context={"daily_ret": -0.015},
+    )
+    assert adv["should_enter"] is False
+    assert adv["likely_direction"] == "SHORT"
+    assert adv["take_profit_price"] < 150.0
+    assert adv["stop_loss_price"] > 150.0
+    assert adv["action"] == "STAND ASIDE"
+    assert "CHOP FILTER" in adv["action_badge"]
+    assert "low-volatility compression" in adv["narrative"]
+
+
+def test_format_advisor_message():
+    from live.telegram_bot import format_advisor_message
+    adv = {
+        "action_badge": "ENTER LONG",
+        "likely_direction": "LONG",
+        "likely_probability_pct": 68.0,
+        "edge_pct": 36.0,
+        "entry_reference": 150.0,
+        "take_profit_price": 156.71,
+        "take_profit_pct": 4.47,
+        "stop_loss_price": 146.65,
+        "stop_loss_pct": 2.24,
+        "breakeven_price": 150.24,
+        "narrative": "Favorable momentum alignment.",
+        "should_enter": True,
+    }
+    msg = format_advisor_message(adv)
+    assert "ENTER LONG" in msg
+    assert "LONG" in msg
+    assert "$156.71" in msg
+    assert "$146.65" in msg
+    assert "2.0 : 1" in msg
+
+
+def test_forecast_horizons_config_and_dashboard():
+    for hz in ("5m", "15m", "60m", "1h", "4h", "1d"):
+        assert hz in dashboard.HORIZONS
+    assert dashboard.HORIZONS["1h"][1] == 60
+    assert dashboard.HORIZONS["4h"][1] == 240
+    assert dashboard.HORIZONS["1d"][1] == 1440
+
+
+def test_save_settings_macro_horizons(monkeypatch, tmp_path):
+    monkeypatch.setattr(dashboard, "ROOT", tmp_path)
+    dashboard.save_settings({"hz": "4h", "tf": "1h", "sol_wallet": ""})
+    assert dashboard.load_settings()["hz"] == "4h"
+    dashboard.save_settings({"hz": "1d", "tf": "4h", "sol_wallet": ""})
+    assert dashboard.load_settings()["hz"] == "1d"
+
+
+def test_advisor_barrier_scaling_with_macro_horizon():
+    import numpy as np
+    # 15m setup
+    adv_15m = dashboard.build_trade_advisor(
+        price=150.0, pred=1, proba=np.array([0.1, 0.7, 0.2]),
+        cross_info={"agree": True, "vote": "LONG"},
+        chop_info={"is_chop": False, "compression_ratio": 1.0, "current_percentile": 50.0},
+        atr=0.01, horizon_min=15, flow={}, market_context={},
+    )
+    # 4h setup
+    adv_4h = dashboard.build_trade_advisor(
+        price=150.0, pred=1, proba=np.array([0.1, 0.7, 0.2]),
+        cross_info={"agree": True, "vote": "LONG"},
+        chop_info={"is_chop": False, "compression_ratio": 1.0, "current_percentile": 50.0},
+        atr=0.01, horizon_min=240, flow={}, market_context={},
+    )
+    # 4h barriers should be wider than 15m barriers (sqrt(240) vs sqrt(15) = 4x wider)
+    tp_dist_15m = adv_15m["take_profit_price"] - 150.0
+    tp_dist_4h = adv_4h["take_profit_price"] - 150.0
+    assert tp_dist_4h > tp_dist_15m
+    assert pytest.approx(tp_dist_4h / tp_dist_15m, rel=1e-2) == (240 / 15) ** 0.5
+    assert adv_4h["horizon_label"] == "4h (240m)"

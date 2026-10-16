@@ -70,7 +70,7 @@
     <main id="main">
       <section id="overviewPanel" class="panel" aria-label="Market dashboard">
         <section class="market-strip" aria-label="Market summary">
-          <div class="price-block"><span class="eyebrow">SOL / USD <span class="venue">Jupiter Perps · Hyperliquid reference chart</span></span><div class="price-line"><strong id="priceValue">—</strong><span id="priceChange" class="price-change">Waiting for price</span></div></div>
+          <div class="price-block"><span class="eyebrow">SOL / USD <span class="venue">Lightning · Hyperliquid reference chart</span></span><div class="price-line"><strong id="priceValue">—</strong><span id="priceChange" class="price-change">Waiting for price</span></div></div>
           <div class="market-stat"><span class="eyebrow">Hourly funding</span><strong id="fundingValue">—</strong><span class="stat-foot">Perpetual rate</span></div>
           <div class="market-stat"><span class="eyebrow">Open interest</span><strong id="oiValue">—</strong><span class="stat-foot">Notional USD</span></div>
           <div class="market-stat"><span class="eyebrow">15m volatility</span><strong id="atrValue">—</strong><span class="stat-foot">Average true range</span></div>
@@ -99,7 +99,7 @@
         <div class="flow-line"><span id="flowText">Waiting for 15m taker flow</span><span id="flowSizes"></span><span class="flow-spacer"></span><span id="latencyText">Waiting for live tick</span><span id="clockText">— UTC</span></div>
         <p class="chart-disclaimer">Chart markers show historical model calls, not executed trades. A model lean is not a recommendation.</p>
           <section class="decision-card model-panel" id="decisionCard" aria-labelledby="modelPanelHeading">
-            <div class="decision-topline"><div><span class="eyebrow">Research forecast</span><h2 id="modelPanelHeading">The model</h2></div><div class="forecast-controls"><label>Forecast horizon<select id="horizonSelect"><option value="5m">5 minutes</option><option value="15m" selected>15 minutes</option><option value="60m">60 minutes</option></select></label><span id="decisionHorizon" class="horizon-pill">15 min</span></div></div>
+            <div class="decision-topline"><div><span class="eyebrow">Research forecast</span><h2 id="modelPanelHeading">The model</h2></div><div class="forecast-controls"><label>Forecast horizon<select id="horizonSelect"><option value="5m">5 minutes</option><option value="15m" selected>15 minutes</option><option value="1h">1 hour</option><option value="4h">4 hours</option><option value="1d">1 day (24h)</option><option value="60m" hidden>60 minutes</option></select></label><span id="decisionHorizon" class="horizon-pill">15 min</span></div></div>
             <p id="horizonStatus" class="horizon-status" role="status"></p><div class="model-panel-body"><div class="model-assessment"><div class="decision-primary"><span class="validation-badge" id="modelState">Validation not passed</span><h2 id="verdictValue">STAND ASIDE</h2><p id="decisionReason">Waiting for the latest model assessment.</p></div>
             <dl class="decision-reads"><div><dt>Model lean</dt><dd id="modelLean">—</dd><small>Raw output, not proven odds</small></div><div><dt>Indicator balance</dt><dd id="evidenceLean">—</dd><small>Context, not a trade signal</small></div></dl>
             </div><section class="overview-probabilities" aria-labelledby="rawProbabilitiesHeading"><h3 id="rawProbabilitiesHeading">Raw model probabilities</h3><div id="overviewProbabilityBars" class="probability-bars"><p class="probability-placeholder">Waiting for model output…</p></div><p>Long, flat, and short outputs. Not validated confidence.</p></section>
@@ -107,8 +107,53 @@
             <button class="text-button" id="viewEvidence" type="button">View indicators <span aria-hidden="true">→</span></button>
           </section>
           <section class="detail-card indicators-card" id="indicatorsCard" aria-labelledby="indicatorsHeading" tabindex="-1"><div class="section-heading"><div><span class="eyebrow">Market context</span><h2 id="indicatorsHeading">What the indicators see</h2></div><span class="vote-summary" id="detailVoteSummary">—</span></div><p class="indicator-legend"><span class="up">Long / bullish</span><span class="down">Short / bearish</span><span>Neutral / no directional bias</span></p><div class="table-wrap"><table><thead><tr><th>Signal</th><th>Reading</th><th>Bias</th><th>Interpretation</th></tr></thead><tbody id="evidenceRows"><tr><td colspan="4" class="empty-cell">Waiting for market data…</td></tr></tbody></table></div></section>
+          <section class="detail-card advisor-card" id="advisorCard" aria-labelledby="advisorHeading">
+            <div class="section-heading">
+              <div>
+                <span class="eyebrow">AI Market Interpreter</span>
+                <h2 id="advisorHeading">Trade Setup &amp; Tactical Barriers</h2>
+              </div>
+              <span class="advisor-badge" id="advBadge">WAIT (CHOP)</span>
+            </div>
+            <div class="advisor-body">
+              <p class="advisor-narrative" id="advNarrative">Analyzing live order flow, multi-horizon consensus, and volatility barriers...</p>
+              <div class="advisor-grid">
+                <div class="advisor-box">
+                  <span class="adv-label">Should I enter now?</span>
+                  <strong class="adv-val" id="advAction">—</strong>
+                  <small id="advActionSub">Execution verdict</small>
+                </div>
+                <div class="advisor-box">
+                  <span class="adv-label">Most Likely Direction</span>
+                  <strong class="adv-val" id="advDirection">—</strong>
+                  <small id="advDirectionSub">Highest probability lean</small>
+                </div>
+                <div class="advisor-box">
+                  <span class="adv-label">Take-Profit Target (2x ATR)</span>
+                  <strong class="adv-val up" id="advTP">—</strong>
+                  <small id="advTPSub">Target exit barrier</small>
+                </div>
+                <div class="advisor-box">
+                  <span class="adv-label">Stop-Loss Barrier (1x ATR)</span>
+                  <strong class="adv-val down" id="advSL">—</strong>
+                  <small id="advSLSub">Hard stop barrier</small>
+                </div>
+                <div class="advisor-box">
+                  <span class="adv-label">Risk / Reward</span>
+                  <strong class="adv-val" id="advRR">2.0 : 1</strong>
+                  <small>Asymmetric triple-barrier</small>
+                </div>
+                <div class="advisor-box">
+                  <span class="adv-label">Fee Breakeven Hurdle</span>
+                  <strong class="adv-val" id="advFee">$0.00 (0 Fees)</strong>
+                  <small id="advFeeSub">Lightning 0-fee execution</small>
+                </div>
+              </div>
+            </div>
+            <p class="detail-footnote">Synthesized from calibrated ensemble models, real-time taker flow, ATR triple barriers, and Lightning zero-fee execution. Not financial advice.</p>
+          </section>
         <div class="account-section">
-        <section class="detail-card"><div class="section-heading"><div><span class="eyebrow">Jupiter Perps · Read-only</span><h2>Profits &amp; recent trades</h2></div><span class="wallet-address" id="walletAddress">No address loaded</span></div><div id="accountStatus" class="account-status" role="status">Enter a public address below to view activity.</div><div id="accountSummary" class="account-summary"></div><div class="table-wrap"><table><thead><tr><th>Time (UTC)</th><th>Market</th><th>Side</th><th>Action</th><th>Price</th><th>Fee</th><th>Reported P&amp;L</th><th>Est. after fees</th></tr></thead><tbody id="tradeRows"><tr><td colspan="8" class="empty-cell">No activity loaded.</td></tr></tbody></table></div><p class="detail-footnote">Totals cover only the returned recent Jupiter trade window, across all markets, not lifetime profits or bot performance. Estimated net = reported P&amp;L on decrease events minus reported fees on all returned events, including opens. The API does not specify whether trade P&amp;L already includes fees; the estimate may double-count them. Excludes network, priority, swap and integrator costs, unrealized P&amp;L and fees outside this window. This dashboard cannot place orders.</p></section>
+        <section class="detail-card"><div class="section-heading"><div><span class="eyebrow">On-Chain Activity · Read-only</span><h2>Profits &amp; recent trades</h2></div><span class="wallet-address" id="walletAddress">No address loaded</span></div><div id="accountStatus" class="account-status" role="status">Enter a public address below to view activity.</div><div id="accountSummary" class="account-summary"></div><div class="table-wrap"><table><thead><tr><th>Time (UTC)</th><th>Market</th><th>Side</th><th>Action</th><th>Price</th><th>Fee</th><th>Reported P&amp;L</th><th>Est. after fees</th></tr></thead><tbody id="tradeRows"><tr><td colspan="8" class="empty-cell">No activity loaded.</td></tr></tbody></table></div><p class="detail-footnote">Totals cover only the returned recent Jupiter trade window, across all markets, not lifetime profits or bot performance. Estimated net = reported P&amp;L on decrease events minus reported fees on all returned events, including opens. The API does not specify whether trade P&amp;L already includes fees; the estimate may double-count them. Excludes network, priority, swap and integrator costs, unrealized P&amp;L and fees outside this window. This dashboard cannot place orders.</p></section>
         </div>
 
         <section class="detail-card settings-card" aria-labelledby="settingsHeading"><div class="section-heading"><div><span class="eyebrow">Preferences</span><h2 id="settingsHeading">Wallet settings</h2></div></div><form id="settingsForm"><div class="settings-row"><label class="wallet-setting">Public Solana address<input id="walletInput" type="text" spellcheck="false" autocomplete="off" placeholder="Optional public address" maxlength="64"></label><button id="applySettings" class="primary-button" type="submit">Save preferences</button></div><p id="settingsStatus" class="settings-status" role="status"></p></form><p class="detail-footnote">Choose the forecast horizon on the overview model panel. Never enter a private key or seed phrase.</p></section>

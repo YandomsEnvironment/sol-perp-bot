@@ -4,6 +4,7 @@ from __future__ import annotations
 import bisect
 import glob
 import json
+import math
 import os
 import re
 import sys
@@ -29,7 +30,14 @@ SIGNALS_LOG = config.LOGS_DIR / "signals.jsonl"
 CLASS_NAMES = {0: "FLAT", 1: "LONG", 2: "SHORT"}
 TIMEFRAMES = {"1m": 60_000, "5m": 300_000, "15m": 900_000,
               "1h": 3_600_000, "4h": 14_400_000, "1d": 86_400_000}
-HORIZONS = {"5m": ("fast", 5), "15m": ("mid", 15), "60m": ("slow", 60)}
+HORIZONS = {
+    "5m": ("fast", 5),
+    "15m": ("mid", 15),
+    "60m": ("slow", 60),
+    "1h": ("slow", 60),
+    "4h": ("4h", 240),
+    "1d": ("1d", 1440),
+}
 _CACHE: dict[str, tuple[float, object]] = {}
 _CACHE_LOCK = threading.Lock()
 _FEED = None
@@ -295,6 +303,122 @@ def clean(value):
     return value
 
 
+def build_trade_advisor(
+    price: float,
+    pred: int | None,
+    proba: np.ndarray,
+    cross_info: dict | None,
+    chop_info: dict,
+    atr: float,
+    horizon_min: int,
+    flow: dict,
+    market_context: dict,
+) -> dict:
+    p_flat = float(proba[0]) if len(proba) > 0 else 0.0
+    p_long = float(proba[1]) if len(proba) > 1 else 0.0
+    p_short = float(proba[2]) if len(proba) > 2 else 0.0
+
+    # 1. Most likely direction regardless of whether entering now
+    if p_long >= p_short:
+        likely_dir = "LONG"
+        likely_prob = p_long
+        opp_prob = p_short
+    else:
+        likely_dir = "SHORT"
+        likely_prob = p_short
+        opp_prob = p_long
+    edge_pct = max(0.0, (likely_prob - opp_prob) * 100)
+
+    # 2. Triple-barrier targets (2x ATR take-profit, 1x ATR stop-loss)
+    h_mult = math.sqrt(max(1, horizon_min))
+    atr_barrier = atr * h_mult
+    tp_pct = config.TP_ATR * atr_barrier
+    sl_pct = config.SL_ATR * atr_barrier
+
+    target_side = likely_dir if likely_dir in ("LONG", "SHORT") else "LONG"
+    if target_side == "LONG":
+        tp_price = price * (1.0 + tp_pct)
+        sl_price = price * (1.0 - sl_pct)
+        be_price = price * (1.0 + config.ROUND_TRIP_COST)
+    else:
+        tp_price = price * (1.0 - tp_pct)
+        sl_price = price * (1.0 + sl_pct)
+        be_price = price * (1.0 - config.ROUND_TRIP_COST)
+
+    # 3. Action Recommendation: "Should I enter a position now?"
+    is_chop = bool(chop_info.get("is_chop", False))
+    agree = bool(cross_info and cross_info.get("agree", False))
+    vote = cross_info.get("vote", "NEUTRAL") if cross_info else "NEUTRAL"
+    chop_pct = float(chop_info.get("current_percentile", 0.0))
+
+    if is_chop:
+        should_enter = False
+        action = "STAND ASIDE"
+        action_badge = "WAIT (CHOP FILTER)"
+        verdict_reason = f"Market is in low-volatility compression (ATR percentile {chop_pct:.1f}% < 25%). Risk of choppy fee burn exceeds expected move."
+    elif not cross_info or not agree:
+        should_enter = False
+        action = "STAND ASIDE"
+        action_badge = "WAIT (DIVERGENCE)"
+        verdict_reason = f"Fast and confirming model horizons are not in consensus ({cross_info.get('why', 'Evaluating') if cross_info else 'Awaiting model confirmation'})."
+    elif vote in ("LONG", "SHORT"):
+        should_enter = True
+        action = f"ENTER {vote}"
+        action_badge = f"ENTER {vote}"
+        verdict_reason = f"Multi-horizon consensus confirmed on {vote} ({likely_prob*100:.0f}% confidence). Zero fee drag on Lightning."
+    else:
+        should_enter = False
+        action = "STAND ASIDE"
+        action_badge = "STAND ASIDE"
+        verdict_reason = "Ensemble models forecast range-bound consolidation with no directional edge."
+
+    # 4. Contextual AI Narrative
+    flow_share = flow.get("buy_share")
+    flow_note = f"15m taker flow shows {flow_share*100:.0f}% aggressive buys" if flow_share is not None else "order flow is balanced"
+    r24 = market_context.get("ret_1d", 0.0) * 100
+    r24_str = f"24h macro momentum sits at {r24:+.2f}%"
+
+    if should_enter:
+        cond_text = f"Conditions are prime to execute: {verdict_reason}"
+    else:
+        cond_text = f"However, patience is advised: {verdict_reason}"
+
+    narrative = (
+        f"The algorithmic ensemble identifies {likely_dir} as the highest-probability path ({likely_prob*100:.1f}% win odds, +{edge_pct:.1f}% edge over {'Short' if likely_dir == 'LONG' else 'Long'}), while {flow_note} and {r24_str}. "
+        f"{cond_text} "
+        f"Tactical setup: If opening a {target_side} position near ${price:,.2f}, set Take-Profit at ${tp_price:,.2f} (+{tp_pct*100:.2f}%) and Stop-Loss at ${sl_price:,.2f} (-{sl_pct*100:.2f}%). "
+        f"Zero execution fees on Lightning (0 bps fee drag). Breakeven price is exact entry: ${be_price:,.2f}."
+    )
+
+    h_label = (
+        f"{horizon_min // 1440}d ({horizon_min}m)" if horizon_min >= 1440
+        else f"{horizon_min // 60}h ({horizon_min}m)" if horizon_min >= 60
+        else f"{horizon_min}m"
+    )
+
+    return {
+        "should_enter": should_enter,
+        "action": action,
+        "action_badge": action_badge,
+        "verdict_reason": verdict_reason,
+        "likely_direction": likely_dir,
+        "likely_probability_pct": likely_prob * 100,
+        "edge_pct": edge_pct,
+        "entry_reference": price,
+        "take_profit_price": tp_price,
+        "take_profit_pct": tp_pct * 100,
+        "stop_loss_price": sl_price,
+        "stop_loss_pct": sl_pct * 100,
+        "breakeven_price": be_price,
+        "risk_reward_ratio": "2.0 : 1",
+        "fee_hurdle_usd": 0.0,
+        "fee_hurdle_bps": 0.0,
+        "horizon_min": horizon_min,
+        "horizon_label": h_label,
+        "narrative": narrative,
+    }
+
+
 def market_snapshot(settings: dict) -> dict:
     tf, hz = settings["tf"], settings["hz"]
     sol, btc, funding, ctx = get_data()
@@ -492,6 +616,28 @@ def market_snapshot(settings: dict) -> dict:
         paper_summary = paper_trader.get_summary(price)
     except Exception as exc:
         paper_summary = {"enabled": False, "error": str(exc)}
+    market_ctx = {
+        "atr_percentile": atr_percentile,
+        "range_position_1h": float(feats["range_pos_60"].iloc[-1]),
+        "rsi14": float(feats["rsi14"].iloc[-1]),
+        "ret_15m": float(feats["ret_15m"].iloc[-1]),
+        "ret_1h": float(feats["ret_1h"].iloc[-1]),
+        "ret_4h": float(feats["ret_4h"].iloc[-1]),
+        "ret_1d": float(feats["ret_1d"].iloc[-1]) if "ret_1d" in feats.columns and np.isfinite(feats["ret_1d"].iloc[-1]) else 0.0,
+        "btc_ret_15m": float(feats["btc_ret_15m"].iloc[-1]),
+        "oi_change_1h": snap.get("oi_chg_1h"),
+    }
+    trade_advisor = build_trade_advisor(
+        price=price,
+        pred=pred,
+        proba=proba,
+        cross_info=cross_info,
+        chop_info=chop_info,
+        atr=atr,
+        horizon_min=horizon,
+        flow=flow,
+        market_context=market_ctx,
+    )
     return clean({
         "updated_at": now_ms, "refresh_seconds": config.DASHBOARD_REFRESH_S,
         "coin": config.COIN, "tf": tf, "hz": hz, "horizon_min": horizon,
@@ -523,16 +669,8 @@ def market_snapshot(settings: dict) -> dict:
         "cross_horizon": cross_info,
         "chop_filter": chop_info,
         "paper_trading": paper_summary,
-        "market_context": {
-            "atr_percentile": atr_percentile,
-            "range_position_1h": float(feats["range_pos_60"].iloc[-1]),
-            "rsi14": float(feats["rsi14"].iloc[-1]),
-            "ret_15m": float(feats["ret_15m"].iloc[-1]),
-            "ret_1h": float(feats["ret_1h"].iloc[-1]),
-            "ret_4h": float(feats["ret_4h"].iloc[-1]),
-            "ret_1d": float(feats["ret_1d"].iloc[-1]) if "ret_1d" in feats.columns and np.isfinite(feats["ret_1d"].iloc[-1]) else 0.0,
-            "btc_ret_15m": float(feats["btc_ret_15m"].iloc[-1]),
-            "oi_change_1h": snap.get("oi_chg_1h")},
+        "trade_advisor": trade_advisor,
+        "market_context": market_ctx,
         "candles": chart_rows, "signals": signals,
         "wallet": settings["sol_wallet"],
     })
@@ -608,7 +746,13 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(load_settings())
         if parsed.path == "/api/snapshot":
             try:
-                return self.send_json(market_snapshot(load_settings()))
+                settings = load_settings()
+                qs = parse_qs(parsed.query)
+                if "hz" in qs and qs["hz"][0] in HORIZONS:
+                    settings["hz"] = qs["hz"][0]
+                if "tf" in qs and qs["tf"][0] in TIMEFRAMES:
+                    settings["tf"] = qs["tf"][0]
+                return self.send_json(market_snapshot(settings))
             except Exception as exc:
                 return self.send_json({"error": str(exc)}, 503)
         if parsed.path == "/api/account":
@@ -617,12 +761,24 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/api/details":
             try:
                 sol, *_ = get_data()
-                _, horizon = HORIZONS[load_settings()["hz"]]
+                qs = parse_qs(parsed.query)
+                hz = qs["hz"][0] if "hz" in qs and qs["hz"][0] in HORIZONS else load_settings()["hz"]
+                _, horizon = HORIZONS[hz]
                 scored = score_signals(sol, horizon)
                 return self.send_json({
                     "scored": scored.tail(100).to_dict("records") if scored is not None else [],
                     "horizon_min": horizon,
                 })
+            except Exception as exc:
+                return self.send_json({"error": str(exc)}, 503)
+        if parsed.path == "/api/advisor":
+            try:
+                settings = load_settings()
+                qs = parse_qs(parsed.query)
+                if "hz" in qs and qs["hz"][0] in HORIZONS:
+                    settings["hz"] = qs["hz"][0]
+                snap = market_snapshot(settings)
+                return self.send_json(snap.get("trade_advisor", {}))
             except Exception as exc:
                 return self.send_json({"error": str(exc)}, 503)
         if parsed.path == "/api/paper_trades":

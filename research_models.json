@@ -1,5 +1,7 @@
 {
   "fast": "candidates/replay_v3bag/fast_forward_20261015T231253Z.pkl",
   "mid": "candidates/replay_db20mid/mid_forward_20261015T223853Z.pkl",
-  "slow": "candidates/replay_sim2slow/slow_forward_20261015T223950Z.pkl"
+  "slow": "candidates/replay_sim2slow/slow_forward_20261015T223950Z.pkl",
+  "4h": "candidates/replay_macro4h/4h_forward_20261016T011339Z.pkl",
+  "1d": "candidates/replay_macro1d/1d_forward_20261016T011357Z.pkl"
 }
