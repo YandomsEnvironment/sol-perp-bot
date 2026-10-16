@@ -27,16 +27,14 @@ BTC_COIN = "BTC"             # reference market (lead-lag features)
 BINANCE_SYMBOL = "SOLUSDT"   # for Binance Vision bulk history
 HIST_START = "2025-04-01"    # aim for 12+ months of 1m candles
 
-# --- Legacy research cost scenarios; NOT verified Jupiter execution fees ---
-# Existing experiments retain their original assumptions. Do not reinterpret
-# these as Jupiter P&L: borrow, price impact, network and swap costs are missing.
-TAKER_FEE = 0.00045          # 0.045%
-MAKER_FEE = 0.00015          # 0.015%
-SLIPPAGE = 0.0002            # planning number 0.02% per side
-ROUND_TRIP_COST = 2 * (TAKER_FEE + SLIPPAGE)      # pessimistic ~0.13%
-# Realistic target per plan X1: maker (post-only) entry, taker stop-exit.
-# Every backtest is reported at BOTH cost levels.
-MAKER_ROUND_TRIP_COST = MAKER_FEE + TAKER_FEE + SLIPPAGE   # ~0.08%
+# --- Jupiter Perps execution fees ---
+JUPITER_FEE_USD = 0.65       # $0.65 USD observed execution fee per trade / side
+# On a standard ~10 SOL / ~$1,080 position, $0.65 USD = ~0.06% (6 bps) per side.
+TAKER_FEE = 0.0006           # 0.06% Jupiter Perps open/close fee
+MAKER_FEE = 0.0006           # Jupiter Perps pool execution (symmetric open/close fee)
+SLIPPAGE = 0.0002            # planning number 0.02% per side (oracle spread / price impact)
+ROUND_TRIP_COST = 2 * (TAKER_FEE + SLIPPAGE)      # ~0.16% (16 bps) round trip
+MAKER_ROUND_TRIP_COST = 2 * TAKER_FEE             # ~0.12% (12 bps) base pool fee
 
 # --- Triple-barrier labels (ATR-scaled) ---
 HORIZONS_MIN = {"fast": 5, "mid": 15, "slow": 60}   # suite per M5/R6
@@ -49,6 +47,18 @@ SL_ATR = 1.0                 # stop = 1 x ATR. With 1:1 barriers, fees+slip
 CONF_THRESHOLD = 0.60        # trade only if calibrated P(class) exceeds this
 EV_COST_MULT = 3.0           # expected move must clear 3x round-trip cost (R1)
 MAX_LEVERAGE = 3             # isolated margin cap (X3)
+
+# --- Volatility regime filter (Chop filter) ---
+CHOP_FILTER_ENABLED = True   # Suppress directional entries during low-volatility sideways compression
+MIN_ATR_PERCENTILE = 25.0    # Stand aside if 1m ATR percentile is below this threshold (sideways compression)
+
+# --- Paper trading & forward PnL tracking ---
+PAPER_TRADING_ENABLED = True
+PAPER_STARTING_BALANCE_USD = 10000.0   # $10,000 virtual forward test account
+PAPER_POSITION_USD = 1000.0            # $1,000 notional per paper trade (~10 SOL @ $100 or ~5.4 SOL @ $185)
+PAPER_FEE_USD = JUPITER_FEE_USD        # $0.65 USD fee per trade / side ($1.30 round trip)
+PAPER_SLIPPAGE = SLIPPAGE              # 0.02% per side
+PAPER_MAX_HOLD_BARS = 3                # Max trade duration = 3 x horizon bars (e.g. 45 min for 15m horizon)
 
 # --- Risk (R5) ---
 RISK_PER_TRADE = 0.005       # 0.5% of account risked per trade

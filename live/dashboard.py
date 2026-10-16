@@ -1,4 +1,4 @@
-﻿"""Read-only JSON API powering the native SOL-PERP web dashboard."""
+"""Read-only JSON API powering the native SOL-PERP web dashboard."""
 from __future__ import annotations
 
 import bisect
@@ -22,6 +22,7 @@ sys.path.insert(0, str(ROOT))
 import config  # noqa: E402
 import features as F  # noqa: E402
 from data.download_hist import fetch_candles, fetch_funding  # noqa: E402
+from live.paper_trader import paper_trader  # noqa: E402
 
 WEB_ROOT = Path(__file__).resolve().parent / "web"
 SIGNALS_LOG = config.LOGS_DIR / "signals.jsonl"
@@ -83,13 +84,26 @@ def get_feed():
     return _FEED
 
 
+_LAST_DATA = None
+_LAST_CHART = {}
+
+
 def get_data():
+    global _LAST_DATA
     def fetch():
+        global _LAST_DATA
         now = int(time.time() * 1000)
         start = now - 2 * 86_400_000
-        sol = fetch_candles(config.COIN, start, now, verbose=False)
-        btc = fetch_candles(config.BTC_COIN, start, now, verbose=False)
-        funding = fetch_funding(config.COIN, start, now)
+        try:
+            sol = fetch_candles(config.COIN, start, now, verbose=False)
+            btc = fetch_candles(config.BTC_COIN, start, now, verbose=False)
+            funding = fetch_funding(config.COIN, start, now)
+        except Exception:
+            if _LAST_DATA is not None:
+                return _LAST_DATA
+            sol = pd.DataFrame(columns=["timestamp", "open", "high", "low", "close", "volume"])
+            btc = pd.DataFrame(columns=["timestamp", "open", "high", "low", "close", "volume"])
+            funding = pd.DataFrame(columns=["timestamp", "funding_rate"])
         try:
             r = requests.post(config.HL_API_URL + "/info",
                               json={"type": "metaAndAssetCtxs"}, timeout=15)
@@ -97,16 +111,25 @@ def get_data():
             ctx = r.json()
         except Exception:
             ctx = None
-        return sol, btc, funding, ctx
+        _LAST_DATA = (sol, btc, funding, ctx)
+        return _LAST_DATA
     return cached("market-data", config.DASHBOARD_CACHE_TTL, fetch)
 
 
 def get_chart_candles(tf: str) -> pd.DataFrame:
+    global _LAST_CHART
     days = {"1m": 2, "5m": 4, "15m": 7, "1h": 14, "4h": 30}[tf]
     def fetch():
         now = int(time.time() * 1000)
-        return fetch_candles(config.COIN, now - days * 86_400_000, now,
-                             interval=tf, verbose=False)
+        try:
+            df = fetch_candles(config.COIN, now - days * 86_400_000, now,
+                               interval=tf, verbose=False)
+            _LAST_CHART[tf] = df
+            return df
+        except Exception:
+            if tf in _LAST_CHART:
+                return _LAST_CHART[tf]
+            return pd.DataFrame(columns=["timestamp", "open", "high", "low", "close", "volume"])
     return cached(f"chart-{tf}", config.DASHBOARD_CACHE_TTL, fetch).copy()
 
 
@@ -198,11 +221,13 @@ def recorder_snapshots() -> dict:
     return out
 
 
-def build_evidence(f: pd.Series, snap: dict) -> tuple[pd.DataFrame, dict]:
+def build_evidence(f: pd.Series, snap: dict, cross: dict | None = None) -> tuple[pd.DataFrame, dict]:
     f = f.reindex([*f.index, *[name for name in
         ("ema_x", "ema20_dist", "rsi14", "ret_1h", "ret_4h", "btc_ret_15m",
          "funding", "ret_15m", "vol_z_60", "ret_5m") if name not in f.index]])
     rows = []
+    if cross:
+        rows.append(("Multi-horizon consensus", cross["reading"], cross["vote"], cross["why"]))
     trend = "LONG" if f["ema_x"] > 0 and f["ema20_dist"] > 0 else (
         "SHORT" if f["ema_x"] < 0 and f["ema20_dist"] < 0 else "NEUTRAL")
     rows.append(("Trend (EMA20/50)", f"EMA spread {f['ema_x'] * 100:+.2f}%",
@@ -230,12 +255,12 @@ def build_evidence(f: pd.Series, snap: dict) -> tuple[pd.DataFrame, dict]:
     oi = snap.get("oi_chg_1h")
     oi_vote = ("SHORT" if oi > 0 and f["ret_15m"] < 0 else
                "LONG" if oi > 0 and f["ret_15m"] > 0 else "NEUTRAL") if oi is not None else "NEUTRAL"
-    rows.append(("Open interest change (1h)", f"{oi*100:+.1f}%" if oi is not None else "â€”",
+    rows.append(("Open interest change (1h)", f"{oi*100:+.1f}%" if oi is not None else "—",
                  oi_vote, "recorded OI/price context" if oi is not None else "no recorder snapshot"))
     tbs = snap.get("taker_buy_share_15m")
     tbs_vote = "LONG" if tbs is not None and tbs > .55 else (
         "SHORT" if tbs is not None and tbs < .45 else "NEUTRAL")
-    rows.append(("Taker flow (15m)", f"{tbs:.0%} buys" if tbs is not None else "â€”",
+    rows.append(("Taker flow (15m)", f"{tbs:.0%} buys" if tbs is not None else "—",
                  tbs_vote, "aggressive buy/sell balance"))
     vz, r5 = float(f["vol_z_60"]), float(f["ret_5m"])
     vol_vote = ("LONG" if r5 > .001 else "SHORT" if r5 < -.001 else "NEUTRAL") if vz > 2 else "NEUTRAL"
@@ -327,8 +352,53 @@ def market_snapshot(settings: dict) -> dict:
                        "mark": mark}
         except (TypeError, ValueError):
             pass
+    cross_info = None
+    if not quality_errors and not feats.empty and pred is not None:
+        confirm_key = "mid" if model_key == "fast" else ("fast" if model_key == "mid" else "mid")
+        try:
+            conf_bundle = get_bundle(confirm_key)
+            conf_model = conf_bundle.get("model")
+            if conf_model and not conf_bundle.get("load_error"):
+                if isinstance(conf_model, tuple):
+                    conf_model = conf_model[0]
+                X_conf = F.prepare_model_input(feats.iloc[[-1]], conf_bundle["feature_names"])
+                p_conf = np.asarray(conf_model.predict_proba(X_conf)[0], dtype=float)
+                pred_conf = int(np.argmax(p_conf))
+
+                agree = bool(pred != 0 and pred == pred_conf)
+                diverge = bool(pred != 0 and pred_conf != 0 and pred != pred_conf)
+
+                if agree:
+                    vote = CLASS_NAMES[pred]
+                    why = f"Consensus: {model_key} + {confirm_key} both forecast {vote}"
+                elif diverge:
+                    vote = "NEUTRAL"
+                    why = f"Divergence: {model_key} ({CLASS_NAMES[pred]}) contradicts {confirm_key} ({CLASS_NAMES[pred_conf]})"
+                elif pred == 0 and pred_conf == 0:
+                    vote = "NEUTRAL"
+                    why = f"Consensus: both {model_key} and {confirm_key} forecast FLAT"
+                else:
+                    active_side = CLASS_NAMES[pred if pred != 0 else pred_conf]
+                    vote = "NEUTRAL"
+                    why = f"Unconfirmed: {active_side} on only one horizon"
+
+                reading = (f"{model_key} {CLASS_NAMES[pred]} ({proba[pred]*100:.0f}%) · "
+                           f"{confirm_key} {CLASS_NAMES[pred_conf]} ({p_conf[pred_conf]*100:.0f}%)")
+                cross_info = {
+                    "reading": reading,
+                    "vote": vote,
+                    "why": why,
+                    "confirm_key": confirm_key,
+                    "confirm_lean": CLASS_NAMES[pred_conf],
+                    "confirm_proba": {"flat": float(p_conf[0]), "long": float(p_conf[1]), "short": float(p_conf[2])},
+                    "agree": agree,
+                    "diverge": diverge
+                }
+        except Exception:
+            cross_info = None
+
     snap = recorder_snapshots()
-    evidence, tally = build_evidence(feats.iloc[-1], snap)
+    evidence, tally = build_evidence(feats.iloc[-1], snap, cross_info)
     diff = tally["LONG"] - tally["SHORT"]
     evidence_lean = "LONG" if diff >= 2 else "SHORT" if diff <= -2 else "MIXED"
     model_lean = CLASS_NAMES[pred] if pred is not None and not quality_errors else "UNAVAILABLE"
@@ -366,6 +436,25 @@ def market_snapshot(settings: dict) -> dict:
     price_change = float(feats["ret_15m"].iloc[-1])
     atr = float(feats["atr_pct"].iloc[-1])
     atr_percentile = float((feats["atr_pct"] < atr).mean() * 100)
+
+    min_atr_pct = float(getattr(config, "MIN_ATR_PERCENTILE", 25.0))
+    chop_enabled = bool(getattr(config, "CHOP_FILTER_ENABLED", True))
+    is_chop = bool(chop_enabled and atr_percentile < min_atr_pct)
+
+    if cross_info and is_chop and cross_info.get("agree"):
+        cross_info["chop_filtered"] = True
+        cross_info["why"] = (cross_info.get("why") or "") + f" [Suppressed: ATR percentile {atr_percentile:.1f}% < {min_atr_pct:.1f}%]"
+
+    chop_info = {
+        "enabled": chop_enabled,
+        "min_atr_percentile": min_atr_pct,
+        "current_percentile": atr_percentile,
+        "is_chop": is_chop,
+        "status": "CHOP (Filtering active)" if is_chop else "EXPANDED (Clear to trade)",
+    }
+    if is_chop:
+        actionable = False
+
     context_data = {**context}
     flow = feed.taker_flow(15)
     if flow.get("buy_share") is not None:
@@ -381,6 +470,20 @@ def market_snapshot(settings: dict) -> dict:
             "p_short": float(proba[2]), "pred": CLASS_NAMES[pred],
             "threshold": threshold, "horizon": horizon,
             }) + "\n")
+
+    snap_for_paper = {
+        "model_available": not bool(quality_errors),
+        "cross_horizon": cross_info,
+        "chop_filter": chop_info,
+        "atr_pct": atr,
+        "horizon_min": horizon,
+        "probabilities": {"flat": float(proba[0]), "long": float(proba[1]), "short": float(proba[2])},
+    }
+    try:
+        paper_trader.update_market(price, snap_for_paper, now_ms=now_ms)
+        paper_summary = paper_trader.get_summary(price)
+    except Exception as exc:
+        paper_summary = {"enabled": False, "error": str(exc)}
     return clean({
         "updated_at": now_ms, "refresh_seconds": config.DASHBOARD_REFRESH_S,
         "coin": config.COIN, "tf": tf, "hz": hz, "horizon_min": horizon,
@@ -408,7 +511,11 @@ def market_snapshot(settings: dict) -> dict:
         "gate_pass": gate_pass, "threshold": threshold,
         "qualifying_trades": int(aggregate.get("n_trades", 0) or 0),
         "gate_reason": "Walk-forward gate failed; probabilities are not validated confidence.",
-        "evidence": evidence.to_dict(orient="records"), "market_context": {
+        "evidence": evidence.to_dict(orient="records"),
+        "cross_horizon": cross_info,
+        "chop_filter": chop_info,
+        "paper_trading": paper_summary,
+        "market_context": {
             "atr_percentile": atr_percentile,
             "range_position_1h": float(feats["range_pos_60"].iloc[-1]),
             "rsi14": float(feats["rsi14"].iloc[-1]),
@@ -508,6 +615,13 @@ class Handler(BaseHTTPRequestHandler):
                 })
             except Exception as exc:
                 return self.send_json({"error": str(exc)}, 503)
+        if parsed.path == "/api/paper_trades":
+            feed = get_feed()
+            price = 0.0
+            tick = feed.latest_mid()
+            if tick and feed.mid_age_ms() is not None and feed.mid_age_ms() < 15_000:
+                price = float(tick[1])
+            return self.send_json(paper_trader.get_summary(current_price=price))
         relative = "index.html" if parsed.path in ("", "/") else parsed.path.lstrip("/")
         target = (WEB_ROOT / relative).resolve()
         root = WEB_ROOT.resolve()
@@ -530,7 +644,11 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self):
-        if urlparse(self.path).path != "/api/settings":
+        parsed = urlparse(self.path)
+        if parsed.path == "/api/paper_trades/reset":
+            paper_trader.reset()
+            return self.send_json({"ok": True, "message": "Paper trading state reset successfully."})
+        if parsed.path != "/api/settings":
             return self.send_json({"error": "Not found"}, 404)
         try:
             length = min(int(self.headers.get("Content-Length", "0")), 4096)

@@ -10,6 +10,7 @@ $python = Join-Path $root '.venv\Scripts\python.exe'
 $dashboard = Join-Path $root 'live\dashboard.py'
 $logs = Join-Path $root 'logs'
 $url = "http://127.0.0.1:$Port"
+$telegram = Join-Path $root 'live\telegram_bot.py'
 $started = $null
 
 function Get-Listener {
@@ -32,11 +33,15 @@ try {
         Assert-OurProcess $listener.OwningProcess
         if ($Action -eq 'Stop') {
             Stop-Process -Id $listener.OwningProcess -Force
-            Write-Host 'Dashboard stopped. You can close the browser tab.'
+            Get-CimInstance Win32_Process -Filter "CommandLine like '%telegram_bot.py%'" -ErrorAction SilentlyContinue |
+                ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+            Write-Host 'Dashboard and Telegram bot stopped. You can close the browser tab.'
             exit 0
         }
         Write-Host 'Dashboard is already running.'
     } elseif ($Action -eq 'Stop') {
+        Get-CimInstance Win32_Process -Filter "CommandLine like '%telegram_bot.py%'" -ErrorAction SilentlyContinue |
+            ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
         Write-Host 'Dashboard is already stopped.'
         exit 0
     } else {
@@ -50,6 +55,12 @@ try {
         ) -WorkingDirectory $root -WindowStyle Hidden -PassThru `
           -RedirectStandardOutput (Join-Path $logs "dashboard-$Port.out") `
           -RedirectStandardError (Join-Path $logs "dashboard-$Port.err")
+        $tgProc = Get-CimInstance Win32_Process -Filter "CommandLine like '%telegram_bot.py%'" -ErrorAction SilentlyContinue
+        if (-not $tgProc -and (Test-Path $telegram)) {
+            Start-Process -FilePath $python -ArgumentList @('-u', "`"$telegram`"") -WorkingDirectory $root -WindowStyle Hidden `
+              -RedirectStandardOutput (Join-Path $logs "telegram.out") `
+              -RedirectStandardError (Join-Path $logs "telegram.err")
+        }
     }
 
     $ready = $false

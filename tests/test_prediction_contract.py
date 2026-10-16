@@ -121,11 +121,12 @@ def test_threshold_replay_does_not_let_rejected_signals_block_trades():
 
 
 def test_path_retains_future_bars_outside_prediction_slice():
+    import config
     import train
     c = _path([[100, 100, 100, 100], [100, 100.5, 99.5, 100],
                [100, 100.5, 99.5, 100]])
     result = train._path(c, c.index[:1], [1], [.01], 2)
-    assert result[0] == pytest.approx(-.0013)
+    assert result[0] == pytest.approx(-config.ROUND_TRIP_COST)
 
 
 def test_drawdown_includes_initial_capital_and_compounds():
