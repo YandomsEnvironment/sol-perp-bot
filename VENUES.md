@@ -1,38 +1,32 @@
 # Prediction data and trading venue
 
-The intended trading venue is **Jupiter Perps on Solana**. This project is
-currently read-only: it does not sign transactions or place orders.
+The execution venue is configured for **Lightning** on Solana featuring **0 fees**
+($0.00 / 0 bps fee drag). This project is currently read-only / paper-mode: it does
+not sign live transactions or place real orders.
 
 ## Reference data is not execution data
 
 - Historical model research uses Binance futures candles.
 - Current live candles, ticks, funding and trade flow come from Hyperliquid
-  as a reference market. The chart is NOT a Jupiter fill/oracle history.
-- Wallet positions and activity use Jupiter Perps public APIs.
+  as a reference market. The chart is a reference market feed, NOT a venue fill history.
+- Wallet positions and activity integrate with Solana public APIs.
 - Solana RPC supplies blockchain state and transactions, not a single canonical
   SOL/USD candle history. An oracle/indexer/market feed is needed for prices.
 
 Directional prediction may use reference-market prices; transfer is a testable
-assumption, not a requirement that every input come from Jupiter. Differences
+assumption, not a requirement that every input come from the execution venue. Differences
 in basis, oracle timing and volume can affect features and short-horizon labels.
 Model input compatibility remains required even for raw probability display.
 
-## Execution validation
+## Execution validation & Zero-Fee Structure
 
-The fee constants in `config.py` are retained legacy research scenarios, NOT
-verified Jupiter fees. Jupiter-specific price impact, opening/closing costs,
-borrowing, swaps and transaction/priority fees must be measured separately.
-Existing reports and saved artifacts are historical experiments, not Jupiter
-profitability evidence. New candidates remain blocked from promotion.
+Lightning features 0 execution fees ($0.00 taker / $0.00 maker, 0 bps fee drag).
+In paper trading and the live AI advisor, breakeven entry price equals the exact fill
+price without hurdle penalties.
 
-Next evaluation: collect timestamped Jupiter prices alongside the reference
-feed, compare forecasts against both, and paper-replay Jupiter costs. Do not
-replace historical candles with sparse current-price samples or silently mix
-sources in existing data files.
-
-Official references:
-- https://perps-api.jup.ag/v1/docs
-- https://developers.jup.ag/docs/perps
+Historical model research artifacts from earlier experiments are preserved for
+methodological comparison. New candidates remain blocked from automated promotion
+(`EXECUTION_COSTS_VERIFIED = False`) until live on-chain execution testing is completed.
 
 Run checks from `C:\Users\lumin\Desktop\sol-perp-bot`:
 
