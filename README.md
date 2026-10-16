@@ -42,8 +42,8 @@ variable. No private key is needed. Local settings are excluded from Git.
 ```
 
 Download history before training. Training writes research artifacts under
-`models/candidates`, not the dashboard's active model files. No data or model
-binaries are included in this repository. `research_models.json` explicitly maps
+`models/candidates`, which are tracked in the repository and mapped via
+`research_models.json`. `research_models.json` explicitly maps
 each horizon to a local candidate path relative to `models`. Update that mapping
 after training; the dashboard never picks the newest file automatically or
 replaces active models. It displays the underlying raw classifier probabilities,
@@ -154,5 +154,5 @@ Effective sample size: overlapping forward labels deflate independence
 543k rows), so block-bootstrap confidence intervals on per-trade returns --
 not point estimates -- are the acceptance standard.
 
-Local data, models, logs, wallet settings, credentials and virtual environments
+Local data, logs, wallet settings, credentials and virtual environments
 are intentionally excluded from version control.

@@ -1,0 +1,171 @@
+{
+  "name": "v3bag",
+  "horizon": "fast",
+  "horizon_min": 5,
+  "train_through": "2026-09-01 00:00:00+00:00",
+  "test_start": "2026-09-01 00:00:00+00:00",
+  "test_end": "2026-10-12 23:54:00+00:00",
+  "n_test": 60475,
+  "deadband": 0.0013,
+  "features": "v3",
+  "class_weight": "balanced",
+  "seeds": [
+    42,
+    137,
+    2718
+  ],
+  "estimators": 1200,
+  "tau": 0.5,
+  "delta": 0.1,
+  "calibration": "isotonic",
+  "probability_metrics": {
+    "accuracy": 0.6756180239768499,
+    "balanced_accuracy": 0.3508913506196554,
+    "log_loss": 0.8067513360194324,
+    "brier": 0.4595590692333608,
+    "majority_prior_baseline": {
+      "accuracy": 0.6727077304671352,
+      "balanced_accuracy": 0.3333333333333333,
+      "log_loss": 0.8626465561180096,
+      "brier": 0.49632034585022894
+    }
+  },
+  "directional_calls": 179,
+  "coverage": 0.0029599007854485323,
+  "taker": {
+    "signals": 97,
+    "win_rate": 0.41237113402061853,
+    "mean_return": -0.0008632891775193834,
+    "total_return": -0.08154364867604447,
+    "profit_factor": 0.648268789142943,
+    "max_drawdown": 0.09388190653362138,
+    "gates": {
+      "n_trades": 97,
+      "profit_factor": 0.648268789142943,
+      "max_drawdown": 0.09388190653362138,
+      "gate_pass": false
+    }
+  },
+  "weekly": [
+    {
+      "week": "2026-09-06",
+      "signals": 9,
+      "win_rate": 0.4444444444444444,
+      "mean_return": -0.0011670475685490618,
+      "total_return": -0.010588734447980808,
+      "profit_factor": 0.6134073042772444,
+      "max_drawdown": 0.01892929170444546,
+      "gates": {
+        "n_trades": 9,
+        "profit_factor": 0.6134073042772444,
+        "max_drawdown": 0.01892929170444546,
+        "gate_pass": false
+      }
+    },
+    {
+      "week": "2026-09-13",
+      "signals": 10,
+      "win_rate": 0.2,
+      "mean_return": -0.0020771352348831745,
+      "total_return": -0.020707336984834734,
+      "profit_factor": 0.35466646633415844,
+      "max_drawdown": 0.023806319188365177,
+      "gates": {
+        "n_trades": 10,
+        "profit_factor": 0.35466646633415844,
+        "max_drawdown": 0.023806319188365177,
+        "gate_pass": false
+      }
+    },
+    {
+      "week": "2026-09-20",
+      "signals": 22,
+      "win_rate": 0.5,
+      "mean_return": 6.051023645377777e-05,
+      "total_return": 0.0008517704898847178,
+      "profit_factor": 1.0274098976448232,
+      "max_drawdown": 0.021851037985885613,
+      "gates": {
+        "n_trades": 22,
+        "profit_factor": 1.0274098976448232,
+        "max_drawdown": 0.021851037985885613,
+        "gate_pass": false
+      }
+    },
+    {
+      "week": "2026-09-27",
+      "signals": 22,
+      "win_rate": 0.4090909090909091,
+      "mean_return": -0.0009894541120185178,
+      "total_return": -0.02177038347419702,
+      "profit_factor": 0.5954833490650261,
+      "max_drawdown": 0.02722361680883245,
+      "gates": {
+        "n_trades": 22,
+        "profit_factor": 0.5954833490650261,
+        "max_drawdown": 0.02722361680883245,
+        "gate_pass": false
+      }
+    },
+    {
+      "week": "2026-10-04",
+      "signals": 10,
+      "win_rate": 0.5,
+      "mean_return": -0.00023069648218524298,
+      "total_return": -0.00236380978470474,
+      "profit_factor": 0.857354013216752,
+      "max_drawdown": 0.016074830327351575,
+      "gates": {
+        "n_trades": 10,
+        "profit_factor": 0.857354013216752,
+        "max_drawdown": 0.016074830327351575,
+        "gate_pass": false
+      }
+    },
+    {
+      "week": "2026-10-11",
+      "signals": 19,
+      "win_rate": 0.3157894736842105,
+      "mean_return": -0.0015538262679119213,
+      "total_return": -0.02930633059389387,
+      "profit_factor": 0.446557204161884,
+      "max_drawdown": 0.036023202669423715,
+      "gates": {
+        "n_trades": 19,
+        "profit_factor": 0.446557204161884,
+        "max_drawdown": 0.036023202669423715,
+        "gate_pass": false
+      }
+    },
+    {
+      "week": "2026-10-18",
+      "signals": 5,
+      "win_rate": 0.6,
+      "mean_return": -3.9568115800735386e-05,
+      "total_return": -0.0002205436665467797,
+      "profit_factor": 0.9710104201441034,
+      "max_drawdown": 0.004514996306208663,
+      "gates": {
+        "n_trades": 5,
+        "profit_factor": 0.9710104201441034,
+        "max_drawdown": 0.004514996306208663,
+        "gate_pass": false
+      }
+    }
+  ],
+  "maker": {
+    "signals": 97,
+    "win_rate": 0.44329896907216493,
+    "mean_return": -0.0003632891775193839,
+    "total_return": -0.03587068513407843,
+    "profit_factor": 0.8325791531879428,
+    "max_drawdown": 0.05544951146677901,
+    "gates": {
+      "n_trades": 97,
+      "profit_factor": 0.8325791531879428,
+      "max_drawdown": 0.05544951146677901,
+      "gate_pass": false
+    }
+  },
+  "sim": "barrier_scale=sqrt(h)"
+}

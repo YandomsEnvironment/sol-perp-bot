@@ -1,0 +1,41 @@
+{
+  "name": "macro4h",
+  "horizon": "4h",
+  "horizon_min": 240,
+  "train_through": "2026-09-01 00:00:00+00:00",
+  "test_start": "2026-09-01 00:00:00+00:00",
+  "test_end": "2026-10-12 19:59:00+00:00",
+  "n_test": 60240,
+  "deadband": 0.002,
+  "features": "v3",
+  "class_weight": "balanced",
+  "seeds": [
+    42
+  ],
+  "estimators": 600,
+  "tau": 0.5,
+  "delta": 0.1,
+  "calibration": "raw",
+  "probability_metrics": {
+    "accuracy": 0.28431274900398407,
+    "balanced_accuracy": 0.3616037613571655,
+    "log_loss": 1.1036910395562372,
+    "brier": 0.6702325490121586,
+    "majority_prior_baseline": {
+      "accuracy": 0.388031208499336,
+      "balanced_accuracy": 0.3333333333333333,
+      "log_loss": 1.0560230641308834,
+      "brier": 0.6406348416950122
+    }
+  },
+  "directional_calls": 0,
+  "coverage": 0.0,
+  "taker": {
+    "signals": 0
+  },
+  "weekly": [],
+  "maker": {
+    "signals": 0
+  },
+  "sim": "barrier_scale=sqrt(h)"
+}

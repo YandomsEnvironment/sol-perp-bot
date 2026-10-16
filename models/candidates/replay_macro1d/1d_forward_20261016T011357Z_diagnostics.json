@@ -1,0 +1,41 @@
+{
+  "name": "macro1d",
+  "horizon": "1d",
+  "horizon_min": 1440,
+  "train_through": "2026-09-01 00:00:00+00:00",
+  "test_start": "2026-09-01 00:00:00+00:00",
+  "test_end": "2026-10-11 23:59:00+00:00",
+  "n_test": 59040,
+  "deadband": 0.005,
+  "features": "v3",
+  "class_weight": "balanced",
+  "seeds": [
+    42
+  ],
+  "estimators": 600,
+  "tau": 0.5,
+  "delta": 0.1,
+  "calibration": "raw",
+  "probability_metrics": {
+    "accuracy": 0.39202235772357724,
+    "balanced_accuracy": 0.3183728178374922,
+    "log_loss": 1.0958175357778954,
+    "brier": 0.6648078989709046,
+    "majority_prior_baseline": {
+      "accuracy": 0.42103658536585364,
+      "balanced_accuracy": 0.3333333333333333,
+      "log_loss": 1.0210072493801123,
+      "brier": 0.6211649961724082
+    }
+  },
+  "directional_calls": 0,
+  "coverage": 0.0,
+  "taker": {
+    "signals": 0
+  },
+  "weekly": [],
+  "maker": {
+    "signals": 0
+  },
+  "sim": "barrier_scale=sqrt(h)"
+}
