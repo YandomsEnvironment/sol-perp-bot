@@ -1,0 +1,109 @@
+{
+  "input_contract": "closed-ohlcv-v2",
+  "target": "forward",
+  "horizon_min": 240,
+  "folds": [
+    {
+      "test_start": "2026-07-01 00:00:00+00:00",
+      "n": 44640,
+      "probability_metrics": {
+        "accuracy": 0.4874551971326165,
+        "balanced_accuracy": 0.32597725092748303,
+        "log_loss": 0.7390528270886484,
+        "brier": 0.5101821643788945,
+        "majority_prior_baseline": {
+          "accuracy": 0.4992383512544803,
+          "balanced_accuracy": 0.3333333333333333,
+          "log_loss": 0.7374248227323525,
+          "brier": 0.5079853517784727
+        }
+      },
+      "threshold": 1.01,
+      "raw_probability_metrics": {
+        "accuracy": 0.4874551971326165,
+        "balanced_accuracy": 0.32597725092748303,
+        "log_loss": 0.7390528270886484,
+        "brier": 0.5101821643788945,
+        "majority_prior_baseline": {
+          "accuracy": 0.4992383512544803,
+          "balanced_accuracy": 0.3333333333333333,
+          "log_loss": 0.7374248227323525,
+          "brier": 0.5079853517784727
+        }
+      },
+      "calibration_selection": {
+        "choice": "raw",
+        "raw": {
+          "accuracy": 0.5029634171265073,
+          "balanced_accuracy": 0.32863578487379846,
+          "log_loss": 0.7254740565633107,
+          "brier": 0.5073950674509139
+        },
+        "isotonic": {
+          "accuracy": 0.4654608624565706,
+          "balanced_accuracy": 0.31318025837956553,
+          "log_loss": 1.218540481102376,
+          "brier": 0.5417411535995567
+        },
+        "selection_reused_for_threshold": true
+      },
+      "threshold_diagnostics": [
+        {
+          "threshold": 0.6,
+          "signals": 0,
+          "win_rate": null,
+          "mean_return": null,
+          "profit_factor": null
+        },
+        {
+          "threshold": 1.01,
+          "signals": 0,
+          "win_rate": null,
+          "mean_return": null,
+          "profit_factor": null
+        },
+        {
+          "threshold": 0.4,
+          "signals": 186,
+          "win_rate": 0.478494623655914,
+          "mean_return": -0.0008926500603892523,
+          "profit_factor": 0.7570261519382302
+        },
+        {
+          "threshold": 0.5,
+          "signals": 185,
+          "win_rate": 0.5081081081081081,
+          "mean_return": -0.0003961540144558193,
+          "profit_factor": 0.8868755450588345
+        },
+        {
+          "threshold": 0.6,
+          "signals": 0,
+          "win_rate": null,
+          "mean_return": null,
+          "profit_factor": null
+        }
+      ]
+    }
+  ],
+  "all_oos_probability_metrics": {
+    "accuracy": 0.4874551971326165,
+    "balanced_accuracy": 0.32597725092748303,
+    "log_loss": 0.7390528270886484,
+    "brier": 0.5101821643788945,
+    "majority_prior_baseline": {
+      "accuracy": 0.4992383512544803,
+      "balanced_accuracy": 0.3333333333333333,
+      "log_loss": 0.7374248227323525,
+      "brier": 0.5079853517784727
+    }
+  },
+  "all_oos_path_returns": {
+    "signals": 0,
+    "mean": null
+  },
+  "gate_pass": false,
+  "research_gate_pass": false,
+  "promotion_block_reason": "Reference-price forecasting on Lighter with 0 execution fees",
+  "artifact": "4h_forward_20261016T023028Z.pkl"
+}

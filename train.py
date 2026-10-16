@@ -46,7 +46,9 @@ def build_dataset(data: dict, horizon_min: int, target: str = "forward") -> pd.D
     if target not in ("forward", "barrier"):
         raise ValueError("target must be forward or barrier")
     candles = _indexed(data["sol"])
-    feats = F.compute_model_features(data["sol"], btc_candles=data.get("btc"))
+    sol_clean = data["sol"].drop(columns=["taker_buy_volume"], errors="ignore")
+    btc_clean = data["btc"].drop(columns=["taker_buy_volume"], errors="ignore") if data.get("btc") is not None else None
+    feats = F.compute_model_features(sol_clean, btc_candles=btc_clean)
     feats = feats.reindex(candles.index)
     # The same ATR14 percentage accompanies either target and the path simulator.
     if hasattr(F, "atr"):
