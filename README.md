@@ -1,7 +1,7 @@
 # SOL Perp Research Bot
 
 SOL directional forecasting, chronological multi-horizon model evaluation, and a local
-read-only dashboard configured for **Lightning** zero-fee perpetual execution.
+read-only dashboard configured for **Lighter** zero-fee perpetual execution ([app.lighter.xyz/trade/SOL](https://app.lighter.xyz/trade/SOL)).
 
 **This project does not sign transactions or place orders.** Predictions are
 model outputs, not proven win probabilities or demonstrated profitability.
@@ -10,7 +10,7 @@ model outputs, not proven win probabilities or demonstrated profitability.
 
 - Binance futures candles provide historical research data.
 - Hyperliquid supplies the current live reference candles and market feed.
-- Lightning zero-fee structure ($0.00 / 0 bps fee drag) eliminates breakeven hurdles.
+- Lighter zero-fee structure ($0.00 / 0 bps fee drag) eliminates breakeven hurdles.
 - Multi-horizon forecast suite supports 5m (fast), 15m (mid), 1h (slow), 4h, and 1d horizons.
 - Native AI Tactical Advisor provides actionable entry verdict, likely direction odds, and exact ATR-scaled TP/SL barriers.
 - Live input requires the `closed-ohlcv-v2` feature contract and valid completed
@@ -18,7 +18,7 @@ model outputs, not proven win probabilities or demonstrated profitability.
 - Candidates are saved separately, with promotion disabled. Research models remain read-only.
 
 See [VENUES.md](VENUES.md) for the data/execution distinction. Execution is
-configured for Lightning zero-fee trading ($0.00 / 0 bps fee drag).
+configured for Lighter zero-fee trading ($0.00 / 0 bps fee drag).
 
 ## Install (Windows PowerShell)
 

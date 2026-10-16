@@ -365,7 +365,7 @@ def build_trade_advisor(
         should_enter = True
         action = f"ENTER {vote}"
         action_badge = f"ENTER {vote}"
-        verdict_reason = f"Multi-horizon consensus confirmed on {vote} ({likely_prob*100:.0f}% confidence). Zero fee drag on Lightning."
+        verdict_reason = f"Multi-horizon consensus confirmed on {vote} ({likely_prob*100:.0f}% confidence). Zero fee drag on Lighter DEX."
     else:
         should_enter = False
         action = "STAND ASIDE"
@@ -387,7 +387,7 @@ def build_trade_advisor(
         f"The algorithmic ensemble identifies {likely_dir} as the highest-probability path ({likely_prob*100:.1f}% win odds, +{edge_pct:.1f}% edge over {'Short' if likely_dir == 'LONG' else 'Long'}), while {flow_note} and {r24_str}. "
         f"{cond_text} "
         f"Tactical setup: If opening a {target_side} position near ${price:,.2f}, set Take-Profit at ${tp_price:,.2f} (+{tp_pct*100:.2f}%) and Stop-Loss at ${sl_price:,.2f} (-{sl_pct*100:.2f}%). "
-        f"Zero execution fees on Lightning (0 bps fee drag). Breakeven price is exact entry: ${be_price:,.2f}."
+        f"Zero execution fees on Lighter (app.lighter.xyz) (0 bps fee drag). Breakeven price is exact entry: ${be_price:,.2f}."
     )
 
     h_label = (
@@ -779,6 +779,23 @@ class Handler(BaseHTTPRequestHandler):
                     settings["hz"] = qs["hz"][0]
                 snap = market_snapshot(settings)
                 return self.send_json(snap.get("trade_advisor", {}))
+            except Exception as exc:
+                return self.send_json({"error": str(exc)}, 503)
+        if parsed.path == "/api/lighter":
+            try:
+                import live.lighter_client as lighter_client
+                def _get_lighter_data():
+                    mkt = lighter_client.get_market_details()
+                    ob = lighter_client.get_order_book(limit=10)
+                    trades = lighter_client.get_recent_trades(limit=10)
+                    return {
+                        "market": mkt,
+                        "order_book": ob,
+                        "recent_trades": trades,
+                        "lighter_url": getattr(config, "LIGHTER_WEB_URL", "https://app.lighter.xyz/trade/SOL"),
+                    }
+                data = cached("lighter-market-summary", 5, _get_lighter_data)
+                return self.send_json(data)
             except Exception as exc:
                 return self.send_json({"error": str(exc)}, 503)
         if parsed.path == "/api/paper_trades":

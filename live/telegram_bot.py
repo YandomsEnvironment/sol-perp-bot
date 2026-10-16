@@ -3,7 +3,7 @@
 Features:
 - Pushes real-time alerts when multi-horizon consensus confirms a LONG or SHORT.
 - Low-volatility chop filter: suppresses alerts during sideways compression.
-- Forward paper trading & PnL tracker with 0 fees (Lightning).
+- Forward paper trading & PnL tracker with 0 fees (Lighter DEX).
 - Interactive commands: /price, /signals, /plan, /pnl, /trades, /status, /start.
 - Auto-detects and binds your Telegram Chat ID upon sending /start.
 """
@@ -227,13 +227,13 @@ def format_pnl_message(paper: dict) -> str:
         active_str = "• <i>None (Standing aside in cash)</i>"
 
     return (
-        f"<b>📊 Lightning Forward Paper Trading (0 Fees)</b>\n\n"
+        f"<b>📊 Lighter Forward Paper Trading (0 Fees)</b>\n\n"
         f"💰 <b>Virtual Equity:</b> ${equity:,.2f} (<code>{ret_sign}{net_ret:.2f}%</code>)\n"
         f"💵 <b>Cash Balance:</b> ${balance:,.2f} (Net: {sign}${net_pnl:.2f})\n"
         f"🎯 <b>Total Closed Trades:</b> {total} ({wins}W / {losses}L)\n"
         f"🏆 <b>Win Rate:</b> {win_rate:.1f}%\n"
         f"📈 <b>Profit Factor:</b> {pf:.2f}\n"
-        f"💸 <b>Execution Fees Paid:</b> ${fees:.2f} (0 fees on Lightning)\n"
+        f"💸 <b>Execution Fees Paid:</b> ${fees:.2f} (0 fees on Lighter)\n"
         f"📉 <b>Max Drawdown:</b> ${max_dd:.2f} ({max_dd_pct:.1f}%)\n\n"
         f"<b>Active Position:</b>\n{active_str}\n\n"
         f"⏱ <i>Updated at {time.strftime('%H:%M:%S UTC')}</i>"
@@ -245,7 +245,7 @@ def format_trades_message(paper: dict) -> str:
     if not trades:
         return "<b>📜 Recent Paper Trades</b>\n\nNo paper trades closed yet."
 
-    lines = ["<b>📜 Recent Paper Trades (Lightning 0-Fee)</b>\n"]
+    lines = ["<b>📜 Recent Paper Trades (Lighter 0-Fee)</b>\n"]
     for i, t in enumerate(trades[:6], 1):
         d = t.get("direction", "LONG")
         tone = "🟢" if d == "LONG" else "🔴"
@@ -345,7 +345,7 @@ def format_advisor_message(adv: dict) -> str:
         f"  • <b>Take-Profit (2x ATR):</b> <code>${tp:,.2f}</code> (+{tp_pct:.2f}%)\n"
         f"  • <b>Stop-Loss (1x ATR):</b> <code>${sl:,.2f}</code> (-{sl_pct:.2f}%)\n"
         f"  • <b>Risk / Reward:</b> <code>2.0 : 1</code>\n"
-        f"  • <b>Fee Breakeven Hurdle:</b> ${be:,.2f} ($0.00 / 0 fees on Lightning)\n\n"
+        f"  • <b>Fee Breakeven Hurdle:</b> ${be:,.2f} ($0.00 / 0 fees on Lighter)\n\n"
         f"📝 <b>Executive Synthesis:</b>\n<i>{narrative}</i>"
     )
 
@@ -387,7 +387,7 @@ def check_and_alert() -> None:
                 f"• <b>Exit Reason:</b> <code>{reason}</code>\n"
                 f"• <b>Entry:</b> ${epx:,.2f} ➔ <b>Exit:</b> ${xpx:,.2f}\n"
                 f"• <b>Net PnL:</b> <b>{sign}${pnl:.2f}</b> ({sign}{ret:.2f}%)\n"
-                f"• <b>Lightning Fee:</b> $0.00 (Zero fee execution)\n"
+                f"• <b>Lighter Fee:</b> $0.00 (Zero fee execution)\n"
                 f"• <b>Virtual Equity:</b> ${paper.get('current_equity_usd', 0.0):,.2f}"
             )
             send_message(card)
@@ -410,7 +410,7 @@ def check_and_alert() -> None:
                 f"• <b>Entry:</b> ${epx:,.2f}\n"
                 f"• <b>Target (2x ATR):</b> ${tp:,.2f}\n"
                 f"• <b>Stop (1x ATR):</b> ${sl:,.2f}\n"
-                f"• <b>Execution Fee:</b> $0.00 (Lightning 0-fee)"
+                f"• <b>Execution Fee:</b> $0.00 (Lighter 0-fee)"
             )
             send_message(card)
     else:
@@ -454,8 +454,8 @@ def check_and_alert() -> None:
         f"🎯 <b>Take-Profit Target (2x ATR):</b> ${tp_price:,.2f}\n"
         f"🛑 <b>Stop-Loss Barrier (1x ATR):</b> ${sl_price:,.2f}\n"
         f"📊 <b>Confidence:</b> {p_val:.1f}%\n"
-        f"⚡ <b>Lightning Execution:</b> $0.00 (Zero Fees)\n\n"
-        f"🔗 <a href='https://lightning.exchange'>Open Lightning</a>"
+        f"⚡ <b>Lighter Execution:</b> $0.00 (Zero Fees)\n\n"
+        f"🔗 <a href='https://app.lighter.xyz/trade/SOL'>Open Lighter (app.lighter.xyz)</a>"
     )
 
     if send_message(alert_text):
@@ -494,14 +494,14 @@ def handle_updates(offset: int) -> int:
                     "👋 <b>Welcome to Solana Market Brief!</b>\n\n"
                     "Your Telegram chat is connected to your local trading bot.\n\n"
                     "• Real-time alerts on multi-horizon consensus & volatility expansion\n"
-                    "• Automated forward paper trading tracker with Lightning 0 fees\n"
+                    "• Automated forward paper trading tracker with Lighter 0 fees\n"
                     "• AI-driven tactical advisor for entry, SL & TP barriers\n\n"
                     "<b>Commands:</b>\n"
                     "/plan [horizon] — AI Tactical Setup (e.g. /plan, /plan 1h, /plan 4h, /plan 1d)\n"
                     "/signals [horizon] — Model forecast & consensus (5m, 15m, 1h, 4h, 1d)\n"
                     "/price — Live SOL price, 15m momentum & funding\n"
                     "/pnl — Forward paper trading performance & open position\n"
-                    "/wallet — Your live on-chain Solana / Lightning positions\n"
+                    "/wallet — Your live on-chain Solana / Lighter positions\n"
                     "/trades — Last closed paper trades with net PnL\n"
                     "/status — Bot health, models & connection status"
                 )
@@ -576,7 +576,7 @@ def handle_updates(offset: int) -> int:
                 status_text = (
                     f"🤖 <b>Bot Status: Active & Monitoring</b>\n\n"
                     f"• <b>Live Feed:</b> {'Connected ✅' if s and s.get('feed_connected') else 'Reconnecting ⚠️'}\n"
-                    f"• <b>Execution Venue:</b> Lightning (0 fees) ✅\n"
+                    f"• <b>Execution Venue:</b> Lighter (0 fees) ✅\n"
                     f"• <b>Fee Drag:</b> 0 bps (Zero fee execution) ✅\n"
                     f"• <b>Forecast Horizons:</b> 5m, 15m, 1h, 4h, 1d (Macro) ✅\n"
                     f"• <b>Multi-Horizon Filter:</b> Enabled ✅\n"
@@ -592,7 +592,7 @@ def handle_updates(offset: int) -> int:
                     "/signals [horizon] — Model forecast & consensus (5m, 15m, 1h, 4h, 1d)\n"
                     "/price — Live SOL price & stats\n"
                     "/pnl — Forward paper trading performance\n"
-                    "/wallet — Your live on-chain Solana / Lightning positions\n"
+                    "/wallet — Your live on-chain Solana / Lighter positions\n"
                     "/trades — Recent closed paper trades\n"
                     "/status — Bot health & status",
                     sender_chat_id,

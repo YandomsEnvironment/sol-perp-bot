@@ -1,8 +1,8 @@
-"""Paper trading engine and forward PnL tracker for Lightning (Zero Fees).
+"""Paper trading engine and forward PnL tracker for Lighter DEX (Zero Fees).
 
 Simulates execution against live reference price feeds with accurate fee accounting:
-- Zero execution fees on Lightning ($0.00 USD per trade / side)
-- Realistic slippage: 0 bps (zero fees on Lightning)
+- Zero execution fees on Lighter ($0.00 USD per trade / side)
+- Realistic slippage: 0 bps (zero fees on Lighter)
 - Triple-barrier exits: 2x ATR Take-Profit, 1x ATR Stop-Loss, and max duration timeout
 - Persistent state saved to data_store/paper_trading_state.json and paper_trades.jsonl
 """

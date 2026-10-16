@@ -14,24 +14,29 @@ for _d in (DATA_STORE, MODELS_DIR, LOGS_DIR):
 
 # --- Market ---
 COIN = "SOL"
-EXECUTION_VENUE = "Lightning"
+EXECUTION_VENUE = "Lighter"
 EXECUTION_ENABLED = False
 EXECUTION_COSTS_VERIFIED = False
 LIVE_REFERENCE_SOURCE = "Hyperliquid"
 HISTORICAL_SOURCE = "Binance futures"
+LIGHTER_WEB_URL = "https://app.lighter.xyz/trade/SOL"
+LIGHTER_API_BASE_URL = "https://mainnet.zklighter.elliot.ai"
+LIGHTER_WS_URL = "wss://mainnet.zklighter.elliot.ai/stream"
+LIGHTER_MARKET_ID = 2            # SOL perpetual market ID on Lighter
 JUPITER_PERPS_API_URL = "https://perps-api.jup.ag/v1"
 VENUE_VALIDATION_REASON = (
-    "Reference-price forecasting on Lightning with 0 execution fees"
+    "Reference-price forecasting on Lighter with 0 execution fees"
 )
 BTC_COIN = "BTC"             # reference market (lead-lag features)
 BINANCE_SYMBOL = "SOLUSDT"   # for Binance Vision bulk history
 HIST_START = "2025-04-01"    # aim for 12+ months of 1m candles
 
-# --- Lightning execution fees (Zero Fees) ---
-LIGHTNING_FEE_USD = 0.0       # $0.00 USD execution fee per trade / side on Lightning
+# --- Lighter execution fees (Zero Fees) ---
+LIGHTER_FEE_USD = 0.0         # $0.00 USD execution fee per trade / side on Lighter
+LIGHTNING_FEE_USD = 0.0       # Zero fee alias
 JUPITER_FEE_USD = 0.0         # Zero fee alias
-TAKER_FEE = 0.0               # 0.00% fee on Lightning
-MAKER_FEE = 0.0               # 0.00% fee on Lightning
+TAKER_FEE = 0.0               # 0.00% fee on Lighter
+MAKER_FEE = 0.0               # 0.00% fee on Lighter
 SLIPPAGE = 0.0                # Zero fees / tight execution
 ROUND_TRIP_COST = 0.0         # 0.00% round trip cost
 MAKER_ROUND_TRIP_COST = 0.0   # 0.00% base pool fee
@@ -63,7 +68,7 @@ MIN_ATR_PERCENTILE = 25.0    # Stand aside if 1m ATR percentile is below this th
 PAPER_TRADING_ENABLED = True
 PAPER_STARTING_BALANCE_USD = 10000.0   # $10,000 virtual forward test account
 PAPER_POSITION_USD = 1000.0            # $1,000 notional per paper trade (~10 SOL @ $100 or ~5.4 SOL @ $185)
-PAPER_FEE_USD = LIGHTNING_FEE_USD      # $0.00 USD fee per trade / side on Lightning (0 fees)
+PAPER_FEE_USD = LIGHTER_FEE_USD        # $0.00 USD fee per trade / side on Lighter (0 fees)
 PAPER_SLIPPAGE = SLIPPAGE              # 0.00%
 PAPER_MAX_HOLD_BARS = 3                # Max trade duration = 3 x horizon bars (e.g. 45 min for 15m horizon)
 

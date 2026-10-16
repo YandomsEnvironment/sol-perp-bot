@@ -1,6 +1,6 @@
 # Prediction data and trading venue
 
-The execution venue is configured for **Lightning** on Solana featuring **0 fees**
+The execution venue is configured for **Lighter** perpetual DEX ([app.lighter.xyz/trade/SOL](https://app.lighter.xyz/trade/SOL)) featuring **0 fees**
 ($0.00 / 0 bps fee drag). This project is currently read-only / paper-mode: it does
 not sign live transactions or place real orders.
 
@@ -18,11 +18,19 @@ assumption, not a requirement that every input come from the execution venue. Di
 in basis, oracle timing and volume can affect features and short-horizon labels.
 Model input compatibility remains required even for raw probability display.
 
-## Execution validation & Zero-Fee Structure
+## Execution validation & Lighter Zero-Fee Structure
 
-Lightning features 0 execution fees ($0.00 taker / $0.00 maker, 0 bps fee drag).
+Lighter features 0 execution fees ($0.00 taker / $0.00 maker, 0 bps fee drag).
 In paper trading and the live AI advisor, breakeven entry price equals the exact fill
 price without hurdle penalties.
+
+Lighter integration details:
+- Web App: https://app.lighter.xyz/trade/SOL
+- API Documentation: https://apidocs.lighter.xyz
+- REST Base URL: `https://mainnet.zklighter.elliot.ai/api/v1/`
+- WebSocket Feed: `wss://mainnet.zklighter.elliot.ai/stream`
+- Market ID (SOL Perp): `2`
+- Helper Client: [`live/lighter_client.py`](live/lighter_client.py)
 
 Historical model research artifacts from earlier experiments are preserved for
 methodological comparison. New candidates remain blocked from automated promotion
